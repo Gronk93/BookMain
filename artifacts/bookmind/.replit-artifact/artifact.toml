@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "BookMind"
+description = "A focused reading workspace that turns personal PDFs into interactive books with progress tracking, annotations, and contextual understanding tools."
+version = "1.0.0"
+id = "artifacts/bookmind"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21952
+
+[services.development]
+run = "pnpm --filter @workspace/bookmind run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/bookmind", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/bookmind/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21952"
+BASE_PATH = "/"
