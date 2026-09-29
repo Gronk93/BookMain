@@ -1,0 +1,11 @@
+{
+  "title": "Settings",
+  "languageLabel": "Interface language",
+  "languageDescription": "Select your preferred language for BookMind.",
+  "themeLabel": "Visual theme",
+  "themeDescription": "Choose your default reading and app theme.",
+  "accountLabel": "Account",
+  "readingPreferences": "Reading preferences",
+  "readingModeLabel": "Reading mode",
+  "fontSizeLabel": "Font size"
+}

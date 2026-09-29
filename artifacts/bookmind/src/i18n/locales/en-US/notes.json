@@ -1,0 +1,9 @@
+{
+  "title": "Your notes",
+  "addNote": "Add note",
+  "notePlaceholder": "What do you want to remember from this page?",
+  "savedAutomatically": "Synced with your BookMind account.",
+  "noNotes": "No notes on this page yet.",
+  "deleteConfirm": "Delete this note?",
+  "pageNote": "Page {{page}} note"
+}

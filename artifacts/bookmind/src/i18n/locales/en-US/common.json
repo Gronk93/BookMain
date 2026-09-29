@@ -1,0 +1,40 @@
+{
+  "appName": "bookmind",
+  "tagline": "A little more understanding, every day.",
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "back": "Back",
+    "continue": "Continue",
+    "search": "Search",
+    "loading": "Loading…",
+    "saving": "Saving…",
+    "retry": "Retry"
+  },
+  "nav": {
+    "library": "Library",
+    "notes": "Notes",
+    "study": "Study",
+    "settings": "Settings",
+    "login": "Sign In",
+    "register": "Create Account",
+    "logout": "Sign Out"
+  },
+  "theme": {
+    "toggle": "Toggle theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "paper": "Paper",
+    "sepia": "Sepia",
+    "night": "Night"
+  },
+  "language": {
+    "select": "Language",
+    "esMX": "Español (México)",
+    "enUS": "English (US)"
+  }
+}

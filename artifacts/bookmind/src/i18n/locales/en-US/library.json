@@ -1,0 +1,19 @@
+{
+  "subtitle": "Your reading space for books that stay with you.",
+  "addBook": "Add a book",
+  "searchPlaceholder": "Search your library",
+  "noBooksMatch": "No books match that search.",
+  "continueReading": "Continue reading",
+  "activeBooks": "active books",
+  "notesMade": "notes made",
+  "highlights": "highlights",
+  "thisWeek": "This week",
+  "quietProgress": "A quiet kind of progress.",
+  "yourLibrary": "Your library",
+  "booksToReturnTo": "Books to return to",
+  "emptyLibrary": "Your library is ready for your first readings.",
+  "pdfImportModalTitle": "Import PDF document",
+  "pdfImportNotice": "PDF import is in preparation. Coming in BM-PRD-03.",
+  "pageOf": "Page {{current}} of {{total}}",
+  "percentCompleted": "{{percent}}% read"
+}

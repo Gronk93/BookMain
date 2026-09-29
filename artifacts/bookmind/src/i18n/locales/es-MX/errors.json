@@ -1,0 +1,7 @@
+{
+  "notFoundTitle": "Página no encontrada",
+  "notFoundDescription": "La página que buscas no existe o ha sido movida.",
+  "genericError": "Ha ocurrido un error inesperado.",
+  "networkError": "No se pudo conectar con el servidor. Revisa tu conexión.",
+  "bookNotFound": "No pudimos encontrar este libro en tu biblioteca."
+}

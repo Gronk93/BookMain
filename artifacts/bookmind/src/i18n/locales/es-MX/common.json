@@ -1,0 +1,40 @@
+{
+  "appName": "bookmind",
+  "tagline": "Un poco más de comprensión, cada día.",
+  "actions": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "back": "Volver",
+    "continue": "Continuar",
+    "search": "Buscar",
+    "loading": "Cargando…",
+    "saving": "Guardando…",
+    "retry": "Reintentar"
+  },
+  "nav": {
+    "library": "Biblioteca",
+    "notes": "Notas",
+    "study": "Estudio",
+    "settings": "Ajustes",
+    "login": "Iniciar sesión",
+    "register": "Crear cuenta",
+    "logout": "Cerrar sesión"
+  },
+  "theme": {
+    "toggle": "Cambiar tema",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema",
+    "paper": "Papel",
+    "sepia": "Sepia",
+    "night": "Noche"
+  },
+  "language": {
+    "select": "Idioma",
+    "esMX": "Español (México)",
+    "enUS": "English (US)"
+  }
+}

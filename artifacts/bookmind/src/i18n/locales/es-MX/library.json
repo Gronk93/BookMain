@@ -1,0 +1,19 @@
+{
+  "subtitle": "Tu espacio de lectura para libros que permanecen contigo.",
+  "addBook": "Agregar un libro",
+  "searchPlaceholder": "Buscar en tu biblioteca",
+  "noBooksMatch": "Ningún libro coincide con la búsqueda.",
+  "continueReading": "Continuar leyendo",
+  "activeBooks": "libros activos",
+  "notesMade": "notas creadas",
+  "highlights": "fragmentos destacados",
+  "thisWeek": "Esta semana",
+  "quietProgress": "Un progreso sereno y constante.",
+  "yourLibrary": "Tu biblioteca",
+  "booksToReturnTo": "Libros para regresar",
+  "emptyLibrary": "Tu biblioteca está lista para tus lecturas.",
+  "pdfImportModalTitle": "Importar documento PDF",
+  "pdfImportNotice": "Importación de PDF en preparación. Próximamente en BM-PRD-03.",
+  "pageOf": "Página {{current}} de {{total}}",
+  "percentCompleted": "{{percent}}% leído"
+}

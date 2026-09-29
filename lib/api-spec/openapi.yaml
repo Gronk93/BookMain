@@ -1,29 +1,451 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 0.2.0
+  description: BookMind Foundation API Specification (BM-PRD-02)
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+    description: System health and readiness operations
+  - name: auth
+    description: Authentication and session operations
+  - name: user
+    description: User profile and preferences operations
+  - name: books
+    description: Books, reading progress, bookmarks and notes operations
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
+      description: Returns liveness status
       responses:
         "200":
-          description: Healthy
+          description: Liveness healthy
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /readyz:
+    get:
+      operationId: readinessCheck
+      tags: [health]
+      summary: Readiness check
+      description: Returns readiness including database connection status
+      responses:
+        "200":
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessStatus"
+        "503":
+          description: Service is degraded or unready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessStatus"
+
+  /auth/register:
+    post:
+      operationId: registerUser
+      tags: [auth]
+      summary: Register new user
+      description: Creates user account and issues initial auth session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: loginUser
+      tags: [auth]
+      summary: Login user
+      description: Authenticates user credentials and issues session token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid email or password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logoutUser
+      tags: [auth]
+      summary: Logout user
+      description: Clears session cookie and invalidates session token
+      responses:
+        "200":
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /me:
+    get:
+      operationId: getCurrentUser
+      tags: [user]
+      summary: Get current authenticated user
+      description: Returns user profile and current preferences
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /me/preferences:
+    patch:
+      operationId: updateUserPreferences
+      tags: [user]
+      summary: Update user preferences
+      description: Modifies language, theme, reading mode or font size
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePreferencesRequest"
+      responses:
+        "200":
+          description: Preferences updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPreferences"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books:
+    get:
+      operationId: getBooks
+      tags: [books]
+      summary: List user books
+      description: Returns list of books in the user library with reading progress
+      responses:
+        "200":
+          description: List of books
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BookSummary"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}:
+    get:
+      operationId: getBookDetails
+      tags: [books]
+      summary: Get book details
+      description: Returns book metadata, pages, progress, bookmarks, and notes
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Book details with pages and annotations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookDetailResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/progress:
+    put:
+      operationId: updateReadingProgress
+      tags: [books]
+      summary: Update reading progress
+      description: Persists current page, percentage, and completion status
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateReadingProgressRequest"
+      responses:
+        "200":
+          description: Reading progress updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadingProgress"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/bookmarks:
+    post:
+      operationId: createBookmark
+      tags: [books]
+      summary: Create bookmark
+      description: Creates a bookmark on a specific page
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookmarkRequest"
+      responses:
+        "201":
+          description: Bookmark created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bookmark"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/bookmarks/{bookmarkId}:
+    delete:
+      operationId: deleteBookmark
+      tags: [books]
+      summary: Delete bookmark
+      description: Removes a bookmark by ID
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: bookmarkId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bookmark deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Bookmark not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/notes:
+    post:
+      operationId: createNote
+      tags: [books]
+      summary: Create note
+      description: Creates a page note or quote highlight
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNoteRequest"
+      responses:
+        "201":
+          description: Note created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/notes/{noteId}:
+    put:
+      operationId: updateNote
+      tags: [books]
+      summary: Update note
+      description: Edits note content or color tag
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: noteId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateNoteRequest"
+      responses:
+        "200":
+          description: Note updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Note not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteNote
+      tags: [books]
+      summary: Delete note
+      description: Deletes note by ID
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: noteId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Note deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Note not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +453,366 @@ components:
       properties:
         status:
           type: string
+        version:
+          type: string
+        timestamp:
+          type: string
       required:
         - status
 
+    ReadinessStatus:
+      type: object
+      properties:
+        status:
+          type: string
+        database:
+          type: string
+        timestamp:
+          type: string
+      required:
+        - status
+        - database
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        displayName:
+          type: string
+      required:
+        - email
+        - password
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        displayName:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - email
+
+    UserPreferences:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        language:
+          type: string
+          enum: [es-MX, en-US]
+        theme:
+          type: string
+          enum: [light, dark, system]
+        readingMode:
+          type: string
+          enum: [standard, study, speed]
+        fontSize:
+          type: string
+          enum: [small, medium, large, x-large]
+        updatedAt:
+          type: string
+      required:
+        - id
+        - userId
+        - language
+        - theme
+
+    UpdatePreferencesRequest:
+      type: object
+      properties:
+        language:
+          type: string
+          enum: [es-MX, en-US]
+        theme:
+          type: string
+          enum: [light, dark, system]
+        readingMode:
+          type: string
+          enum: [standard, study, speed]
+        fontSize:
+          type: string
+          enum: [small, medium, large, x-large]
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+        preferences:
+          $ref: "#/components/schemas/UserPreferences"
+      required:
+        - user
+        - token
+
+    UserProfileResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        preferences:
+          $ref: "#/components/schemas/UserPreferences"
+      required:
+        - user
+        - preferences
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+
+    ErrorDetail:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+      required:
+        - code
+        - message
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          default: false
+        error:
+          $ref: "#/components/schemas/ErrorDetail"
+      required:
+        - success
+        - error
+
+    BookSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        author:
+          type: string
+        totalPages:
+          type: integer
+        currentPage:
+          type: integer
+        progressPercent:
+          type: integer
+        coverUrl:
+          type: string
+        sourceType:
+          type: string
+        processingStatus:
+          type: string
+        lastReadAt:
+          type: string
+      required:
+        - id
+        - title
+        - totalPages
+        - currentPage
+        - progressPercent
+
+    BookPage:
+      type: object
+      properties:
+        id:
+          type: string
+        bookId:
+          type: string
+        pageNumber:
+          type: integer
+        textContent:
+          type: string
+        ocrConfidence:
+          type: integer
+          nullable: true
+        isBlank:
+          type: boolean
+      required:
+        - id
+        - bookId
+        - pageNumber
+        - textContent
+
+    ReadingProgress:
+      type: object
+      properties:
+        id:
+          type: string
+        bookId:
+          type: string
+        currentPage:
+          type: integer
+        progressPercent:
+          type: integer
+        completed:
+          type: boolean
+        lastReadAt:
+          type: string
+      required:
+        - id
+        - bookId
+        - currentPage
+        - progressPercent
+        - completed
+
+    UpdateReadingProgressRequest:
+      type: object
+      properties:
+        currentPage:
+          type: integer
+          minimum: 1
+        progressPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        completed:
+          type: boolean
+      required:
+        - currentPage
+
+    Bookmark:
+      type: object
+      properties:
+        id:
+          type: string
+        bookId:
+          type: string
+        pageNumber:
+          type: integer
+        title:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - bookId
+        - pageNumber
+        - createdAt
+
+    CreateBookmarkRequest:
+      type: object
+      properties:
+        pageNumber:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+      required:
+        - pageNumber
+
+    Note:
+      type: object
+      properties:
+        id:
+          type: string
+        bookId:
+          type: string
+        pageNumber:
+          type: integer
+        highlightText:
+          type: string
+          nullable: true
+        content:
+          type: string
+        color:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - bookId
+        - pageNumber
+        - content
+        - color
+        - createdAt
+
+    CreateNoteRequest:
+      type: object
+      properties:
+        pageNumber:
+          type: integer
+          minimum: 1
+        content:
+          type: string
+        highlightText:
+          type: string
+        color:
+          type: string
+      required:
+        - pageNumber
+        - content
+
+    UpdateNoteRequest:
+      type: object
+      properties:
+        content:
+          type: string
+        color:
+          type: string
+      required:
+        - content
+
+    BookDetailResponse:
+      type: object
+      properties:
+        book:
+          $ref: "#/components/schemas/BookSummary"
+        pages:
+          type: array
+          items:
+            $ref: "#/components/schemas/BookPage"
+        progress:
+          $ref: "#/components/schemas/ReadingProgress"
+        bookmarks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Bookmark"
+        notes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Note"
+      required:
+        - book
+        - pages
+        - bookmarks
+        - notes

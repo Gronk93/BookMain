@@ -1,0 +1,11 @@
+{
+  "title": "Ajustes",
+  "languageLabel": "Idioma de la interfaz",
+  "languageDescription": "Selecciona el idioma principal de BookMind.",
+  "themeLabel": "Tema visual",
+  "themeDescription": "Elige tu modo visual preferido.",
+  "accountLabel": "Cuenta",
+  "readingPreferences": "Preferencias de lectura",
+  "readingModeLabel": "Modo de lectura",
+  "fontSizeLabel": "Tamaño de letra"
+}
