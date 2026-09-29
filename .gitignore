@@ -49,3 +49,10 @@ Thumbs.db
 .local/
 .claude/
 
+# BookMind Private Storage & Temporary Uploads
+data/storage/
+data/tmp/
+**/data/storage/
+**/data/tmp/
+
+

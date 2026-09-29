@@ -225,6 +225,20 @@ export const GetBookDetailsResponse = zod.object({
 
 
 /**
+ * Soft-deletes or removes book and stored original file
+ * @summary Delete book
+ */
+export const DeleteBookParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const DeleteBookResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
  * Persists current page, percentage, and completion status
  * @summary Update reading progress
  */
@@ -363,5 +377,97 @@ export const DeleteNoteResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.string().optional()
 })
+
+
+/**
+ * Uploads and ingests a PDF file into private user storage and creates a library book
+ * @summary Import PDF book
+ */
+export const ImportBookPdfBody = zod.object({
+  "file": zod.instanceof(Blob).describe('The PDF file to import'),
+  "title": zod.string().optional().describe('Optional title override'),
+  "author": zod.string().optional().describe('Optional author override'),
+  "language": zod.string().optional().describe('Optional language override')
+})
+
+export const ImportBookPdfResponse = zod.object({
+  "book": zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "author": zod.string().optional(),
+  "totalPages": zod.number().int(),
+  "currentPage": zod.number().int(),
+  "progressPercent": zod.number().int(),
+  "coverUrl": zod.string().optional(),
+  "sourceType": zod.string().optional(),
+  "processingStatus": zod.string().optional(),
+  "lastReadAt": zod.string().optional()
+}),
+  "file": zod.object({
+  "id": zod.string(),
+  "bookId": zod.string(),
+  "originalFilename": zod.string(),
+  "filePath": zod.string(),
+  "fileSizeBytes": zod.number().int(),
+  "mimeType": zod.string().optional(),
+  "checksumSha256": zod.string(),
+  "storageProvider": zod.string().optional(),
+  "uploadStatus": zod.string().optional(),
+  "createdAt": zod.string().optional()
+}),
+  "job": zod.object({
+  "status": zod.string(),
+  "stage": zod.string(),
+  "progress": zod.number().int()
+}).optional()
+})
+
+
+/**
+ * Returns the processing job state and progress for a book
+ * @summary Get book processing status
+ */
+export const GetBookProcessingStatusParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const GetBookProcessingStatusResponse = zod.object({
+  "status": zod.string(),
+  "stage": zod.string(),
+  "progress": zod.number().int()
+})
+
+
+/**
+ * Returns file size, checksum, and storage information
+ * @summary Get book original file metadata
+ */
+export const GetBookFileMetadataParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const GetBookFileMetadataResponse = zod.object({
+  "id": zod.string(),
+  "bookId": zod.string(),
+  "originalFilename": zod.string(),
+  "filePath": zod.string(),
+  "fileSizeBytes": zod.number().int(),
+  "mimeType": zod.string().optional(),
+  "checksumSha256": zod.string(),
+  "storageProvider": zod.string().optional(),
+  "uploadStatus": zod.string().optional(),
+  "createdAt": zod.string().optional()
+})
+
+
+/**
+ * Streams the original ingested PDF with HTTP Range support
+ * @summary Stream original PDF file
+ */
+export const DownloadBookOriginalPdfParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const DownloadBookOriginalPdfResponse = zod.unknown()
 
 

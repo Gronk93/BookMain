@@ -1,5 +1,7 @@
 import React from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
+import { FileText, Sparkles } from "lucide-react";
 import { Cover } from "./Cover";
 import type { BookSummary } from "@workspace/api-client-react";
 
@@ -16,8 +18,12 @@ const PALETTE = [
 ];
 
 export function BookCard({ book, index }: BookCardProps) {
+  const { t } = useTranslation("library");
   const palette = PALETTE[index % PALETTE.length];
   const progress = book.progressPercent ?? Math.round((book.currentPage / (book.totalPages || 1)) * 100);
+
+  const isPdf = book.sourceType === "pdf";
+  const isReadyForProcessing = book.processingStatus === "ready_for_processing";
 
   return (
     <Link
@@ -28,16 +34,33 @@ export function BookCard({ book, index }: BookCardProps) {
       <div className="flex gap-4 sm:gap-5">
         <Cover
           title={book.title}
-          label={palette.label}
-          color={palette.color}
-          accent={palette.accent}
+          label={isPdf ? "PDF ORIGINAL" : palette.label}
+          color={isPdf ? "#2c3b38" : palette.color}
+          accent={isPdf ? "#D3A16E" : palette.accent}
           compact
         />
         <div className="flex min-w-0 flex-1 flex-col justify-between py-1">
           <div>
-            <p className="mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
-              {book.sourceType === "sample" ? "Ensayo" : "Documento"}
-            </p>
+            <div className="flex items-center gap-2">
+              <span className="mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground flex items-center gap-1">
+                {isPdf ? (
+                  <>
+                    <FileText size={10} className="text-primary" />
+                    <span>PDF</span>
+                  </>
+                ) : (
+                  <span>Ensayo</span>
+                )}
+              </span>
+
+              {isReadyForProcessing && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-medium text-emerald-600 dark:text-emerald-400">
+                  <Sparkles size={8} />
+                  <span>{t("statusReady")}</span>
+                </span>
+              )}
+            </div>
+
             <h3 className="serif mt-1.5 text-xl font-medium leading-snug line-clamp-2">
               {book.title}
             </h3>
@@ -47,9 +70,10 @@ export function BookCard({ book, index }: BookCardProps) {
               </p>
             )}
           </div>
+
           <div>
             <div className="mb-2 flex justify-between text-[10px] text-muted-foreground">
-              <span>Página {book.currentPage} de {book.totalPages}</span>
+              <span>{t("pageOf", { current: book.currentPage, total: book.totalPages })}</span>
               <span>{progress}%</span>
             </div>
             <div className="h-1 overflow-hidden rounded-full bg-secondary">

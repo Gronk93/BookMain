@@ -8,6 +8,7 @@
 
 export * from './authResponse';
 export * from './bookDetailResponse';
+export * from './bookFileMetadata';
 export * from './bookmark';
 export * from './bookPage';
 export * from './bookSummary';
@@ -17,8 +18,11 @@ export * from './errorDetail';
 export * from './errorDetailDetails';
 export * from './errorResponse';
 export * from './healthStatus';
+export * from './importBookPdfRequest';
+export * from './importBookResponse';
 export * from './loginRequest';
 export * from './note';
+export * from './processingJobStatus';
 export * from './readinessStatus';
 export * from './readingProgress';
 export * from './registerRequest';

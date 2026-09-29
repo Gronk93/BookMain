@@ -22,14 +22,18 @@ import type {
 import type {
   AuthResponse,
   BookDetailResponse,
+  BookFileMetadata,
   BookSummary,
   Bookmark,
   CreateBookmarkRequest,
   CreateNoteRequest,
   ErrorResponse,
   HealthStatus,
+  ImportBookPdfRequest,
+  ImportBookResponse,
   LoginRequest,
   Note,
+  ProcessingJobStatus,
   ReadinessStatus,
   ReadingProgress,
   RegisterRequest,
@@ -800,6 +804,81 @@ export function useGetBookDetails<TData = Awaited<ReturnType<typeof getBookDetai
 
 
 
+export const getDeleteBookUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}`
+}
+
+/**
+ * Soft-deletes or removes book and stored original file
+ * @summary Delete book
+ */
+export const deleteBook = async (bookId: string, options?: Parameters<typeof customFetch>[1]): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteBookUrl(bookId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteBookMutationKey = () => ['deleteBook'] as const;
+
+export const getDeleteBookMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBook>>, TError,DeleteBookMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteBook>>, TError,DeleteBookMutationVariables, TContext> => {
+
+const mutationKey = getDeleteBookMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteBook>>, DeleteBookMutationVariables> = (props) => {
+          const {bookId} = props ?? {};
+
+          return  deleteBook(bookId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteBookMutationResult = NonNullable<Awaited<ReturnType<typeof deleteBook>>>
+
+    export type DeleteBookMutationError = ErrorType<ErrorResponse>
+    export type DeleteBookMutationVariables = {bookId: string}
+
+    /**
+ * @summary Delete book
+ */
+export const useDeleteBook = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBook>>, TError,DeleteBookMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteBook>>,
+        TError,
+        DeleteBookMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteBookMutationOptions(options));
+    }
+
 export const getUpdateReadingProgressUrl = (bookId: string,) => {
 
 
@@ -1315,4 +1394,324 @@ export const useDeleteNote = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getDeleteNoteMutationOptions(options));
     }
+
+export const getImportBookPdfUrl = () => {
+
+
+
+
+  return `/api/books/import`
+}
+
+/**
+ * Uploads and ingests a PDF file into private user storage and creates a library book
+ * @summary Import PDF book
+ */
+export const importBookPdf = async (importBookPdfRequest: ImportBookPdfRequest, options?: Parameters<typeof customFetch>[1]): Promise<ImportBookResponse> => {
+    const formData = new FormData();
+formData.append(`file`, importBookPdfRequest.file);
+if(importBookPdfRequest.title !== undefined) {
+ formData.append(`title`, importBookPdfRequest.title);
+ }
+if(importBookPdfRequest.author !== undefined) {
+ formData.append(`author`, importBookPdfRequest.author);
+ }
+if(importBookPdfRequest.language !== undefined) {
+ formData.append(`language`, importBookPdfRequest.language);
+ }
+
+  return customFetch<ImportBookResponse>(getImportBookPdfUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getImportBookPdfMutationKey = () => ['importBookPdf'] as const;
+
+export const getImportBookPdfMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importBookPdf>>, TError,ImportBookPdfMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importBookPdf>>, TError,ImportBookPdfMutationVariables, TContext> => {
+
+const mutationKey = getImportBookPdfMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importBookPdf>>, ImportBookPdfMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  importBookPdf(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportBookPdfMutationResult = NonNullable<Awaited<ReturnType<typeof importBookPdf>>>
+    export type ImportBookPdfMutationBody = BodyType<ImportBookPdfRequest>
+    export type ImportBookPdfMutationError = ErrorType<ErrorResponse>
+    export type ImportBookPdfMutationVariables = {data: BodyType<ImportBookPdfRequest>}
+
+    /**
+ * @summary Import PDF book
+ */
+export const useImportBookPdf = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importBookPdf>>, TError,ImportBookPdfMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importBookPdf>>,
+        TError,
+        ImportBookPdfMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportBookPdfMutationOptions(options));
+    }
+
+export const getGetBookProcessingStatusUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/processing`
+}
+
+/**
+ * Returns the processing job state and progress for a book
+ * @summary Get book processing status
+ */
+export const getBookProcessingStatus = async (bookId: string, options?: Parameters<typeof customFetch>[1]): Promise<ProcessingJobStatus> => {
+
+  return customFetch<ProcessingJobStatus>(getGetBookProcessingStatusUrl(bookId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBookProcessingStatusQueryKey = (bookId: string,) => {
+    return [
+    `/api/books/${bookId}/processing`
+    ] as const;
+    }
+
+
+export const getGetBookProcessingStatusQueryOptions = <TData = Awaited<ReturnType<typeof getBookProcessingStatus>>, TError = ErrorType<ErrorResponse>>(bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookProcessingStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBookProcessingStatusQueryKey(bookId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookProcessingStatus>>> = ({ signal }) => getBookProcessingStatus(bookId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBookProcessingStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBookProcessingStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getBookProcessingStatus>>>
+export type GetBookProcessingStatusQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get book processing status
+ */
+
+export function useGetBookProcessingStatus<TData = Awaited<ReturnType<typeof getBookProcessingStatus>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookProcessingStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBookProcessingStatusQueryOptions(bookId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBookFileMetadataUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/file`
+}
+
+/**
+ * Returns file size, checksum, and storage information
+ * @summary Get book original file metadata
+ */
+export const getBookFileMetadata = async (bookId: string, options?: Parameters<typeof customFetch>[1]): Promise<BookFileMetadata> => {
+
+  return customFetch<BookFileMetadata>(getGetBookFileMetadataUrl(bookId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBookFileMetadataQueryKey = (bookId: string,) => {
+    return [
+    `/api/books/${bookId}/file`
+    ] as const;
+    }
+
+
+export const getGetBookFileMetadataQueryOptions = <TData = Awaited<ReturnType<typeof getBookFileMetadata>>, TError = ErrorType<ErrorResponse>>(bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookFileMetadata>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBookFileMetadataQueryKey(bookId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookFileMetadata>>> = ({ signal }) => getBookFileMetadata(bookId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBookFileMetadata>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBookFileMetadataQueryResult = NonNullable<Awaited<ReturnType<typeof getBookFileMetadata>>>
+export type GetBookFileMetadataQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get book original file metadata
+ */
+
+export function useGetBookFileMetadata<TData = Awaited<ReturnType<typeof getBookFileMetadata>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookFileMetadata>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBookFileMetadataQueryOptions(bookId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDownloadBookOriginalPdfUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/original`
+}
+
+/**
+ * Streams the original ingested PDF with HTTP Range support
+ * @summary Stream original PDF file
+ */
+export const downloadBookOriginalPdf = async (bookId: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadBookOriginalPdfUrl(bookId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadBookOriginalPdfQueryKey = (bookId: string,) => {
+    return [
+    `/api/books/${bookId}/original`
+    ] as const;
+    }
+
+
+export const getDownloadBookOriginalPdfQueryOptions = <TData = Awaited<ReturnType<typeof downloadBookOriginalPdf>>, TError = ErrorType<ErrorResponse>>(bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadBookOriginalPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadBookOriginalPdfQueryKey(bookId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadBookOriginalPdf>>> = ({ signal }) => downloadBookOriginalPdf(bookId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadBookOriginalPdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadBookOriginalPdfQueryResult = NonNullable<Awaited<ReturnType<typeof downloadBookOriginalPdf>>>
+export type DownloadBookOriginalPdfQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Stream original PDF file
+ */
+
+export function useDownloadBookOriginalPdf<TData = Awaited<ReturnType<typeof downloadBookOriginalPdf>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadBookOriginalPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadBookOriginalPdfQueryOptions(bookId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

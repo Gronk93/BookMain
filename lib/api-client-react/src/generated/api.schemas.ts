@@ -242,3 +242,39 @@ export interface BookDetailResponse {
   notes: Note[];
 }
 
+export interface BookFileMetadata {
+  id: string;
+  bookId: string;
+  originalFilename: string;
+  filePath: string;
+  fileSizeBytes: number;
+  mimeType?: string;
+  checksumSha256: string;
+  storageProvider?: string;
+  uploadStatus?: string;
+  createdAt?: string;
+}
+
+export interface ProcessingJobStatus {
+  status: string;
+  stage: string;
+  progress: number;
+}
+
+export interface ImportBookResponse {
+  book: BookSummary;
+  file: BookFileMetadata;
+  job?: ProcessingJobStatus;
+}
+
+export interface ImportBookPdfRequest {
+  /** The PDF file to import */
+  file: Blob;
+  /** Optional title override */
+  title?: string;
+  /** Optional author override */
+  author?: string;
+  /** Optional language override */
+  language?: string;
+}
+

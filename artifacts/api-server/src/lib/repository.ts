@@ -4,21 +4,36 @@ import {
   usersTable,
   userPreferencesTable,
   booksTable,
+  bookFilesTable,
   bookPagesTable,
   readingProgressTable,
   bookmarksTable,
   notesTable,
+  processingJobsTable,
   type User,
   type UserPreferences,
   type Book,
+  type BookFile,
   type BookPage,
   type ReadingProgress,
   type Bookmark,
   type Note,
+  type ProcessingJob,
 } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, isNull } from "drizzle-orm";
 import crypto from "node:crypto";
 import { hashPassword } from "./auth";
+export type {
+  User,
+  UserPreferences,
+  Book,
+  BookFile,
+  BookPage,
+  ReadingProgress,
+  Bookmark,
+  Note,
+  ProcessingJob,
+};
 
 // Types matching API contract
 export interface BookSummaryData {
@@ -32,6 +47,7 @@ export interface BookSummaryData {
   sourceType: string;
   processingStatus: string;
   lastReadAt?: string;
+  createdAt?: string;
 }
 
 export interface BookDetailData {
@@ -47,20 +63,24 @@ interface InMemoryStore {
   users: Map<string, User>;
   preferences: Map<string, UserPreferences>;
   books: Map<string, Book>;
+  bookFiles: Map<string, BookFile>; // key: bookId
   pages: Map<string, BookPage[]>;
   progress: Map<string, ReadingProgress>; // key: `${userId}:${bookId}`
   bookmarks: Map<string, Bookmark>;
   notes: Map<string, Note>;
+  processingJobs: Map<string, ProcessingJob>; // key: bookId
 }
 
 const memoryStore: InMemoryStore = {
   users: new Map(),
   preferences: new Map(),
   books: new Map(),
+  bookFiles: new Map(),
   pages: new Map(),
   progress: new Map(),
   bookmarks: new Map(),
   notes: new Map(),
+  processingJobs: new Map(),
 };
 
 // Initial sample books to seed for any user
@@ -279,6 +299,7 @@ export async function seedBooksForUser(userId: string): Promise<void> {
       coverUrl: sample.coverUrl,
       sourceType: sample.sourceType,
       processingStatus: "ready",
+      deletedAt: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -322,7 +343,11 @@ export async function seedBooksForUser(userId: string): Promise<void> {
 export async function getUserBooks(userId: string): Promise<BookSummaryData[]> {
   const db = getDb();
   if (db && (await checkDatabaseHealth())) {
-    const books = await db.select().from(booksTable).where(eq(booksTable.userId, userId));
+    const books = await db
+      .select()
+      .from(booksTable)
+      .where(and(eq(booksTable.userId, userId), isNull(booksTable.deletedAt)));
+
     const summaries: BookSummaryData[] = [];
     for (const b of books) {
       const prog = await db
@@ -337,11 +362,12 @@ export async function getUserBooks(userId: string): Promise<BookSummaryData[]> {
         author: b.author || undefined,
         totalPages: b.totalPages,
         currentPage: currentProg?.currentPage ?? b.currentPage,
-        progressPercent: currentProg?.progressPercent ?? Math.round((b.currentPage / b.totalPages) * 100),
+        progressPercent: currentProg?.progressPercent ?? Math.round((b.currentPage / (b.totalPages || 1)) * 100),
         coverUrl: b.coverUrl || undefined,
         sourceType: b.sourceType,
         processingStatus: b.processingStatus,
         lastReadAt: currentProg?.lastReadAt?.toISOString(),
+        createdAt: b.createdAt.toISOString(),
       });
     }
     return summaries;
@@ -350,7 +376,7 @@ export async function getUserBooks(userId: string): Promise<BookSummaryData[]> {
   // Memory fallback
   const userBooks: BookSummaryData[] = [];
   for (const b of memoryStore.books.values()) {
-    if (b.userId === userId) {
+    if (b.userId === userId && !b.deletedAt) {
       const prog = memoryStore.progress.get(`${userId}:${b.id}`);
       userBooks.push({
         id: b.id,
@@ -358,11 +384,12 @@ export async function getUserBooks(userId: string): Promise<BookSummaryData[]> {
         author: b.author || undefined,
         totalPages: b.totalPages,
         currentPage: prog?.currentPage ?? b.currentPage,
-        progressPercent: prog?.progressPercent ?? Math.round((b.currentPage / b.totalPages) * 100),
+        progressPercent: prog?.progressPercent ?? Math.round((b.currentPage / (b.totalPages || 1)) * 100),
         coverUrl: b.coverUrl || undefined,
         sourceType: b.sourceType,
         processingStatus: b.processingStatus,
         lastReadAt: prog?.lastReadAt?.toISOString(),
+        createdAt: b.createdAt.toISOString(),
       });
     }
   }
@@ -375,7 +402,7 @@ export async function getBookDetails(bookId: string, userId: string): Promise<Bo
     const bookRes = await db
       .select()
       .from(booksTable)
-      .where(and(eq(booksTable.id, bookId), eq(booksTable.userId, userId)))
+      .where(and(eq(booksTable.id, bookId), eq(booksTable.userId, userId), isNull(booksTable.deletedAt)))
       .limit(1);
 
     const b = bookRes[0];
@@ -397,7 +424,7 @@ export async function getBookDetails(bookId: string, userId: string): Promise<Bo
       userId,
       bookId,
       currentPage: b.currentPage,
-      progressPercent: Math.round((b.currentPage / b.totalPages) * 100),
+      progressPercent: Math.round((b.currentPage / (b.totalPages || 1)) * 100),
       completed: false,
       lastReadAt: new Date(),
       updatedAt: new Date(),
@@ -425,6 +452,7 @@ export async function getBookDetails(bookId: string, userId: string): Promise<Bo
         sourceType: b.sourceType,
         processingStatus: b.processingStatus,
         lastReadAt: progress.lastReadAt.toISOString(),
+        createdAt: b.createdAt.toISOString(),
       },
       pages,
       progress,
@@ -435,7 +463,7 @@ export async function getBookDetails(bookId: string, userId: string): Promise<Bo
 
   // Memory fallback
   const b = memoryStore.books.get(bookId);
-  if (!b || b.userId !== userId) {
+  if (!b || b.userId !== userId || b.deletedAt) {
     return null;
   }
 
@@ -447,7 +475,7 @@ export async function getBookDetails(bookId: string, userId: string): Promise<Bo
       userId,
       bookId,
       currentPage: b.currentPage,
-      progressPercent: Math.round((b.currentPage / b.totalPages) * 100),
+      progressPercent: Math.round((b.currentPage / (b.totalPages || 1)) * 100),
       completed: false,
       lastReadAt: new Date(),
       updatedAt: new Date(),
@@ -481,6 +509,7 @@ export async function getBookDetails(bookId: string, userId: string): Promise<Bo
       sourceType: b.sourceType,
       processingStatus: b.processingStatus,
       lastReadAt: progress.lastReadAt.toISOString(),
+      createdAt: b.createdAt.toISOString(),
     },
     pages,
     progress,
@@ -489,6 +518,274 @@ export async function getBookDetails(bookId: string, userId: string): Promise<Bo
   };
 }
 
+// ---------------------------------------------------------------------------
+// BM-PRD-03: PDF Ingestion, File, and Duplicate Management
+// ---------------------------------------------------------------------------
+
+export async function findBookFileByChecksum(
+  userId: string,
+  checksumSha256: string,
+): Promise<{ book: Book; file: BookFile } | null> {
+  const db = getDb();
+  if (db && (await checkDatabaseHealth())) {
+    const res = await db
+      .select({
+        book: booksTable,
+        file: bookFilesTable,
+      })
+      .from(bookFilesTable)
+      .innerJoin(booksTable, eq(bookFilesTable.bookId, booksTable.id))
+      .where(
+        and(
+          eq(booksTable.userId, userId),
+          eq(bookFilesTable.checksumSha256, checksumSha256),
+          isNull(booksTable.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    if (res[0]) {
+      return {
+        book: res[0].book,
+        file: res[0].file,
+      };
+    }
+    return null;
+  }
+
+  // Memory fallback
+  for (const file of memoryStore.bookFiles.values()) {
+    if (file.checksumSha256 === checksumSha256) {
+      const book = memoryStore.books.get(file.bookId);
+      if (book && book.userId === userId && !book.deletedAt) {
+        return { book, file };
+      }
+    }
+  }
+  return null;
+}
+
+export async function createBookWithFileAndJob(
+  userId: string,
+  data: {
+    book: {
+      id?: string;
+      title: string;
+      author?: string;
+      totalPages: number;
+      coverUrl?: string;
+      sourceType?: string;
+      processingStatus?: string;
+    };
+    file: {
+      id?: string;
+      originalFilename: string;
+      filePath: string;
+      fileSizeBytes: number;
+      mimeType?: string;
+      checksumSha256: string;
+      storageProvider?: string;
+    };
+    job?: {
+      id?: string;
+      jobType?: string;
+      status?: string;
+      stage?: string;
+      progressPercent?: number;
+    };
+  },
+): Promise<{ book: Book; file: BookFile; job: ProcessingJob }> {
+  const now = new Date();
+  const bookId = data.book.id || crypto.randomUUID();
+  const fileId = data.file.id || crypto.randomUUID();
+  const jobId = data.job?.id || crypto.randomUUID();
+
+  const newBook: Book = {
+    id: bookId,
+    userId,
+    title: data.book.title,
+    author: data.book.author || null,
+    totalPages: data.book.totalPages,
+    currentPage: 1,
+    coverUrl: data.book.coverUrl || null,
+    sourceType: data.book.sourceType || "pdf",
+    processingStatus: data.book.processingStatus || "ready_for_processing",
+    deletedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const newFile: BookFile = {
+    id: fileId,
+    bookId,
+    originalFilename: data.file.originalFilename,
+    filePath: data.file.filePath,
+    fileSizeBytes: data.file.fileSizeBytes,
+    mimeType: data.file.mimeType || "application/pdf",
+    checksumSha256: data.file.checksumSha256,
+    storageProvider: data.file.storageProvider || "local",
+    uploadStatus: "uploaded",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const newJob: ProcessingJob = {
+    id: jobId,
+    bookId,
+    jobType: data.job?.jobType || "pdf_ingestion",
+    status: data.job?.status || "completed",
+    stage: data.job?.stage || "ingestion_complete",
+    progressPercent: data.job?.progressPercent ?? 100,
+    errorMessage: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const initialProgress: ReadingProgress = {
+    id: crypto.randomUUID(),
+    userId,
+    bookId,
+    currentPage: 1,
+    progressPercent: 0,
+    completed: false,
+    lastReadAt: now,
+    updatedAt: now,
+  };
+
+  const db = getDb();
+  if (db && (await checkDatabaseHealth())) {
+    await db.transaction(async (tx) => {
+      await tx.insert(booksTable).values(newBook);
+      await tx.insert(bookFilesTable).values(newFile);
+      await tx.insert(processingJobsTable).values(newJob);
+      await tx.insert(readingProgressTable).values(initialProgress);
+    });
+  } else {
+    memoryStore.books.set(bookId, newBook);
+    memoryStore.bookFiles.set(bookId, newFile);
+    memoryStore.processingJobs.set(bookId, newJob);
+    memoryStore.progress.set(`${userId}:${bookId}`, initialProgress);
+  }
+
+  return {
+    book: newBook,
+    file: newFile,
+    job: newJob,
+  };
+}
+
+export async function getBookFile(bookId: string, userId: string): Promise<BookFile | null> {
+  const db = getDb();
+  if (db && (await checkDatabaseHealth())) {
+    const res = await db
+      .select({
+        file: bookFilesTable,
+        book: booksTable,
+      })
+      .from(bookFilesTable)
+      .innerJoin(booksTable, eq(bookFilesTable.bookId, booksTable.id))
+      .where(
+        and(
+          eq(bookFilesTable.bookId, bookId),
+          eq(booksTable.userId, userId),
+          isNull(booksTable.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    return res[0]?.file || null;
+  }
+
+  const book = memoryStore.books.get(bookId);
+  if (!book || book.userId !== userId || book.deletedAt) {
+    return null;
+  }
+  return memoryStore.bookFiles.get(bookId) || null;
+}
+
+export async function getBookProcessingStatus(
+  bookId: string,
+  userId: string,
+): Promise<{ status: string; progress: number; stage: string } | null> {
+  const db = getDb();
+  if (db && (await checkDatabaseHealth())) {
+    const res = await db
+      .select({
+        book: booksTable,
+        job: processingJobsTable,
+      })
+      .from(booksTable)
+      .leftJoin(processingJobsTable, eq(booksTable.id, processingJobsTable.bookId))
+      .where(and(eq(booksTable.id, bookId), eq(booksTable.userId, userId), isNull(booksTable.deletedAt)))
+      .limit(1);
+
+    if (!res[0]) return null;
+    return {
+      status: res[0].book.processingStatus,
+      progress: res[0].job?.progressPercent ?? 100,
+      stage: res[0].job?.stage ?? "ready",
+    };
+  }
+
+  const book = memoryStore.books.get(bookId);
+  if (!book || book.userId !== userId || book.deletedAt) return null;
+
+  const job = memoryStore.processingJobs.get(bookId);
+  return {
+    status: book.processingStatus,
+    progress: job?.progressPercent ?? 100,
+    stage: job?.stage ?? "ready",
+  };
+}
+
+export async function deleteBook(
+  bookId: string,
+  userId: string,
+): Promise<{ success: boolean; filePath?: string }> {
+  const db = getDb();
+  const now = new Date();
+
+  if (db && (await checkDatabaseHealth())) {
+    const bookRes = await db
+      .select()
+      .from(booksTable)
+      .where(and(eq(booksTable.id, bookId), eq(booksTable.userId, userId)))
+      .limit(1);
+    if (!bookRes[0]) return { success: false };
+
+    const fileRes = await db
+      .select()
+      .from(bookFilesTable)
+      .where(eq(bookFilesTable.bookId, bookId))
+      .limit(1);
+
+    const filePath = fileRes[0]?.filePath;
+
+    // Hard delete cascading
+    await db.delete(booksTable).where(eq(booksTable.id, bookId));
+
+    return { success: true, filePath };
+  }
+
+  // Memory fallback
+  const book = memoryStore.books.get(bookId);
+  if (!book || book.userId !== userId) {
+    return { success: false };
+  }
+
+  const file = memoryStore.bookFiles.get(bookId);
+  const filePath = file?.filePath;
+
+  memoryStore.books.delete(bookId);
+  memoryStore.bookFiles.delete(bookId);
+  memoryStore.processingJobs.delete(bookId);
+  memoryStore.progress.delete(`${userId}:${bookId}`);
+  memoryStore.pages.delete(bookId);
+
+  return { success: true, filePath };
+}
+
+// Reading progress, bookmarks, notes handlers
 export async function updateReadingProgress(
   bookId: string,
   userId: string,
@@ -501,13 +798,13 @@ export async function updateReadingProgress(
     const bookRes = await db
       .select()
       .from(booksTable)
-      .where(and(eq(booksTable.id, bookId), eq(booksTable.userId, userId)))
+      .where(and(eq(booksTable.id, bookId), eq(booksTable.userId, userId), isNull(booksTable.deletedAt)))
       .limit(1);
 
     if (!bookRes[0]) return null;
     const b = bookRes[0];
     const safePage = Math.max(1, Math.min(b.totalPages, data.currentPage));
-    const percent = data.progressPercent ?? Math.round((safePage / b.totalPages) * 100);
+    const percent = data.progressPercent ?? Math.round((safePage / (b.totalPages || 1)) * 100);
     const completed = data.completed ?? safePage >= b.totalPages;
 
     const existing = await db
@@ -556,10 +853,10 @@ export async function updateReadingProgress(
 
   // Memory fallback
   const b = memoryStore.books.get(bookId);
-  if (!b || b.userId !== userId) return null;
+  if (!b || b.userId !== userId || b.deletedAt) return null;
 
   const safePage = Math.max(1, Math.min(b.totalPages, data.currentPage));
-  const percent = data.progressPercent ?? Math.round((safePage / b.totalPages) * 100);
+  const percent = data.progressPercent ?? Math.round((safePage / (b.totalPages || 1)) * 100);
   const completed = data.completed ?? safePage >= b.totalPages;
 
   b.currentPage = safePage;
@@ -602,7 +899,7 @@ export async function createBookmark(
     const book = await db
       .select()
       .from(booksTable)
-      .where(and(eq(booksTable.id, bookId), eq(booksTable.userId, userId)))
+      .where(and(eq(booksTable.id, bookId), eq(booksTable.userId, userId), isNull(booksTable.deletedAt)))
       .limit(1);
     if (!book[0]) return null;
 
@@ -620,7 +917,7 @@ export async function createBookmark(
 
   // Memory fallback
   const b = memoryStore.books.get(bookId);
-  if (!b || b.userId !== userId) return null;
+  if (!b || b.userId !== userId || b.deletedAt) return null;
 
   const bookmark: Bookmark = {
     id,
@@ -641,7 +938,7 @@ export async function deleteBookmark(
 ): Promise<boolean> {
   const db = getDb();
   if (db && (await checkDatabaseHealth())) {
-    const res = await db
+    await db
       .delete(bookmarksTable)
       .where(
         and(
@@ -674,7 +971,7 @@ export async function createNote(
     const book = await db
       .select()
       .from(booksTable)
-      .where(and(eq(booksTable.id, bookId), eq(booksTable.userId, userId)))
+      .where(and(eq(booksTable.id, bookId), eq(booksTable.userId, userId), isNull(booksTable.deletedAt)))
       .limit(1);
     if (!book[0]) return null;
 
@@ -695,7 +992,7 @@ export async function createNote(
 
   // Memory fallback
   const b = memoryStore.books.get(bookId);
-  if (!b || b.userId !== userId) return null;
+  if (!b || b.userId !== userId || b.deletedAt) return null;
 
   const note: Note = {
     id,

@@ -58,7 +58,9 @@ export function LibraryPage() {
     },
   });
 
-  const books: BookSummary[] = (apiBooks && apiBooks.length > 0) ? apiBooks : FALLBACK_BOOKS;
+  const books: BookSummary[] = user
+    ? (apiBooks || [])
+    : (apiBooks && apiBooks.length > 0 ? apiBooks : FALLBACK_BOOKS);
 
   const filtered = books.filter((b) =>
     `${b.title} ${b.author || ""}`.toLowerCase().includes(search.toLowerCase()),

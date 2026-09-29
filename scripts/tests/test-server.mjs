@@ -28,7 +28,13 @@ export async function startServer() {
 
   serverProcess = spawn("node", ["./dist/index.mjs"], {
     cwd: apiServerDir,
-    env: { ...process.env, PORT: String(testPort), NODE_ENV: "test" },
+    env: {
+      ...process.env,
+      PORT: String(testPort),
+      NODE_ENV: "test",
+      BOOKMIND_STORAGE_ROOT: path.resolve(__dirname, "../../data/storage"),
+      BOOKMIND_TMP_DIR: path.resolve(__dirname, "../../data/tmp"),
+    },
     stdio: ["ignore", "pipe", "pipe"],
   });
 
@@ -59,29 +65,44 @@ export function stopServer() {
   }
 }
 
+export function getBaseUrl() {
+  return baseUrl;
+}
+
 export async function apiRequest(endpoint, options = {}) {
   if (!baseUrl) {
     await startServer();
   }
 
   const url = `${baseUrl}/api${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   const headers = {
-    Accept: "application/json",
-    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    Accept: options.headers?.Accept || "application/json",
+    ...(options.body && !isFormData && !options.headers?.["Content-Type"] ? { "Content-Type": "application/json" } : {}),
     ...(options.headers || {}),
   };
 
   const res = await fetch(url, {
     ...options,
     headers,
-    body: options.body ? (typeof options.body === "string" ? options.body : JSON.stringify(options.body)) : undefined,
+    body: isFormData ? options.body : (options.body ? (typeof options.body === "string" ? options.body : JSON.stringify(options.body)) : undefined),
   });
 
   let data = null;
-  try {
-    data = await res.json();
-  } catch {
-    data = null;
+  const contentType = res.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+  } else {
+    try {
+      const buf = await res.arrayBuffer();
+      data = Buffer.from(buf);
+    } catch {
+      data = null;
+    }
   }
 
   return {

@@ -1,7 +1,17 @@
 {
   "notFoundTitle": "Page not found",
-  "notFoundDescription": "The page you are looking for does not exist or has been moved.",
+  "notFoundDescription": "The page you are looking for doesn't exist or has been moved.",
   "genericError": "An unexpected error occurred.",
   "networkError": "Could not connect to the server. Please check your connection.",
-  "bookNotFound": "We could not find this book in your library."
+  "bookNotFound": "We couldn't find this book in your library.",
+  "PDF_EMPTY": "The uploaded PDF file is empty (0 bytes).",
+  "PDF_TOO_LARGE": "The file exceeds the maximum allowed size of 100 MB.",
+  "PDF_INVALID_TYPE": "Only PDF files are supported.",
+  "PDF_INVALID_SIGNATURE": "File does not contain a valid PDF binary signature (%PDF-).",
+  "PDF_CORRUPTED": "The PDF file is corrupted and cannot be parsed.",
+  "PDF_PASSWORD_PROTECTED": "This PDF is password protected and cannot be processed.",
+  "PDF_DUPLICATE": "This book already exists in your library.",
+  "PDF_STORAGE_FAILED": "Failed to save file to private storage.",
+  "PDF_INSPECTION_FAILED": "Failed to inspect PDF document metadata.",
+  "PDF_IMPORT_FAILED": "An error occurred during PDF ingestion."
 }

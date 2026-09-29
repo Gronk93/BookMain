@@ -1,4 +1,7 @@
 import { Router, type IRouter } from "express";
+import multer from "multer";
+import fs from "node:fs";
+import path from "node:path";
 import { requireAuth } from "../middlewares/auth";
 import {
   getUserBooks,
@@ -9,9 +12,62 @@ import {
   createNote,
   updateNote,
   deleteNote,
+  getBookFile,
+  getBookProcessingStatus,
+  deleteBook,
 } from "../lib/repository";
+import { ingestPdf } from "../services/pdf-ingestion/pdf-ingestion.service";
+import { PdfIngestionError } from "../services/pdf-ingestion/errors";
+import { getMaxPdfSizeMb } from "../services/pdf-ingestion/pdf-validator";
+import { getStorageProvider } from "../services/storage/local-storage.provider";
 
 const router: IRouter = Router();
+
+// Configure multer temp directory
+const tmpDir = path.resolve(process.cwd(), process.env.BOOKMIND_TMP_DIR || "./data/tmp");
+try {
+  fs.mkdirSync(tmpDir, { recursive: true });
+} catch {}
+
+const upload = multer({
+  dest: tmpDir,
+  limits: {
+    fileSize: getMaxPdfSizeMb() * 1024 * 1024,
+  },
+});
+
+const handlePdfUpload = (req: any, res: any, next: any) => {
+  upload.single("file")(req, res, (err: any) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res.status(413).json({
+            success: false,
+            error: {
+              code: "PDF_TOO_LARGE",
+              message: `The file exceeds the maximum allowed size of ${getMaxPdfSizeMb()} MB.`,
+            },
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "PDF_INVALID_TYPE",
+            message: err.message,
+          },
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "PDF_INVALID_TYPE",
+          message: err.message || "File upload failed",
+        },
+      });
+    }
+    next();
+  });
+};
 
 // All books routes require authentication
 router.use(requireAuth);
@@ -25,6 +81,83 @@ router.get("/books", async (req, res) => {
     res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: err.message || "Failed to list books" },
+    });
+  }
+});
+
+// BM-PRD-03: PDF Import Endpoint
+router.post("/books/import", handlePdfUpload, async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({
+      success: false,
+      error: { code: "PDF_EMPTY", message: "No PDF file provided in the upload request." },
+    });
+    return;
+  }
+
+  const userId = req.user!.id;
+  const { title, author, language } = req.body || {};
+
+  try {
+    const result = await ingestPdf({
+      userId,
+      tempFilePath: req.file.path,
+      originalFilename: req.file.originalname,
+      clientMimeType: req.file.mimetype,
+      title,
+      author,
+      language,
+    });
+
+    res.status(201).json({
+      book: {
+        id: result.book.id,
+        title: result.book.title,
+        author: result.book.author,
+        totalPages: result.book.totalPages,
+        currentPage: result.book.currentPage,
+        progressPercent: 0,
+        coverUrl: result.book.coverUrl,
+        sourceType: result.book.sourceType,
+        processingStatus: result.book.processingStatus,
+      },
+      file: {
+        id: result.file.id,
+        bookId: result.file.bookId,
+        originalFilename: result.file.originalFilename,
+        filePath: result.file.filePath,
+        fileSizeBytes: result.file.fileSizeBytes,
+        mimeType: result.file.mimeType,
+        checksumSha256: result.file.checksumSha256,
+        storageProvider: result.file.storageProvider,
+        uploadStatus: result.file.uploadStatus,
+        createdAt: result.file.createdAt.toISOString(),
+      },
+      job: {
+        status: result.job.status,
+        stage: result.job.stage || "ingestion_complete",
+        progress: result.job.progressPercent,
+      },
+    });
+  } catch (err: any) {
+    if (err instanceof PdfIngestionError) {
+      res.status(err.statusCode).json({
+        success: false,
+        error: {
+          code: err.code,
+          message: err.message,
+          details: err.details,
+        },
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "PDF_IMPORT_FAILED",
+        message: err.message || "Failed to import PDF",
+      },
     });
   }
 });
@@ -83,6 +216,164 @@ router.get("/books/:bookId", async (req, res) => {
     res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: err.message || "Failed to fetch book details" },
+    });
+  }
+});
+
+// BM-PRD-03: Delete Book and its storage file
+router.delete("/books/:bookId", async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { bookId } = req.params;
+
+    const result = await deleteBook(bookId, userId);
+    if (!result.success) {
+      res.status(404).json({
+        success: false,
+        error: { code: "BOOK_NOT_FOUND", message: "Book not found or access denied" },
+      });
+      return;
+    }
+
+    if (result.filePath) {
+      const storage = getStorageProvider();
+      await storage.delete(result.filePath).catch(() => {});
+    }
+
+    res.json({ success: true, message: "Book and file deleted" });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: err.message || "Failed to delete book" },
+    });
+  }
+});
+
+// BM-PRD-03: Book Processing Status
+router.get("/books/:bookId/processing", async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { bookId } = req.params;
+
+    const status = await getBookProcessingStatus(bookId, userId);
+    if (!status) {
+      res.status(404).json({
+        success: false,
+        error: { code: "BOOK_NOT_FOUND", message: "Book not found or access denied" },
+      });
+      return;
+    }
+
+    res.json(status);
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: err.message || "Failed to get processing status" },
+    });
+  }
+});
+
+// BM-PRD-03: Book Original File Metadata
+router.get("/books/:bookId/file", async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { bookId } = req.params;
+
+    const file = await getBookFile(bookId, userId);
+    if (!file) {
+      res.status(404).json({
+        success: false,
+        error: { code: "FILE_NOT_FOUND", message: "Book file not found or access denied" },
+      });
+      return;
+    }
+
+    res.json({
+      id: file.id,
+      bookId: file.bookId,
+      originalFilename: file.originalFilename,
+      filePath: file.filePath,
+      fileSizeBytes: file.fileSizeBytes,
+      mimeType: file.mimeType,
+      checksumSha256: file.checksumSha256,
+      storageProvider: file.storageProvider,
+      uploadStatus: file.uploadStatus,
+      createdAt: file.createdAt.toISOString(),
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: err.message || "Failed to get file metadata" },
+    });
+  }
+});
+
+// BM-PRD-03: Stream Original PDF with HTTP Range Support
+router.get("/books/:bookId/original", async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { bookId } = req.params;
+
+    const file = await getBookFile(bookId, userId);
+    if (!file) {
+      res.status(404).json({
+        success: false,
+        error: { code: "FILE_NOT_FOUND", message: "Original PDF file not found or access denied" },
+      });
+      return;
+    }
+
+    const storage = getStorageProvider();
+    const exists = await storage.exists(file.filePath);
+    if (!exists) {
+      res.status(404).json({
+        success: false,
+        error: { code: "FILE_NOT_FOUND", message: "Original file missing from storage" },
+      });
+      return;
+    }
+
+    const fileSize = file.fileSizeBytes;
+    const rangeHeader = req.headers.range;
+
+    if (rangeHeader) {
+      const parts = rangeHeader.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+      if (isNaN(start) || start >= fileSize || (parts[1] && end < start)) {
+        res.status(416).set("Content-Range", `bytes */${fileSize}`).end();
+        return;
+      }
+
+      const safeEnd = Math.min(end, fileSize - 1);
+      const chunkSize = safeEnd - start + 1;
+
+      res.status(206);
+      res.set({
+        "Content-Range": `bytes ${start}-${safeEnd}/${fileSize}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": chunkSize.toString(),
+        "Content-Type": file.mimeType || "application/pdf",
+      });
+
+      const stream = await storage.get(file.filePath, { start, end: safeEnd });
+      stream.pipe(res);
+    } else {
+      res.status(200);
+      res.set({
+        "Content-Length": fileSize.toString(),
+        "Content-Type": file.mimeType || "application/pdf",
+        "Accept-Ranges": "bytes",
+      });
+
+      const stream = await storage.get(file.filePath);
+      stream.pipe(res);
+    }
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: err.message || "Failed to stream PDF file" },
     });
   }
 });

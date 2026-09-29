@@ -216,6 +216,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteBook
+      tags: [books]
+      summary: Delete book
+      description: Soft-deletes or removes book and stored original file
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Book successfully deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /books/{bookId}/progress:
     put:
@@ -441,6 +471,160 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Note not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/import:
+    post:
+      operationId: importBookPdf
+      tags: [books]
+      summary: Import PDF book
+      description: Uploads and ingests a PDF file into private user storage and creates a library book
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ImportBookPdfRequest"
+      responses:
+        "201":
+          description: Book successfully imported and ready for processing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportBookResponse"
+        "400":
+          description: Invalid PDF format or validation failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Duplicate PDF already in library
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: PDF exceeds maximum size
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Corrupted or password protected PDF
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/processing:
+    get:
+      operationId: getBookProcessingStatus
+      tags: [books]
+      summary: Get book processing status
+      description: Returns the processing job state and progress for a book
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Current processing status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProcessingJobStatus"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/file:
+    get:
+      operationId: getBookFileMetadata
+      tags: [books]
+      summary: Get book original file metadata
+      description: Returns file size, checksum, and storage information
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookFileMetadata"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: File or book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/original:
+    get:
+      operationId: downloadBookOriginalPdf
+      tags: [books]
+      summary: Stream original PDF file
+      description: Streams the original ingested PDF with HTTP Range support
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Full PDF stream
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial Content (Range request)
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book or file not found
           content:
             application/json:
               schema:
@@ -816,3 +1000,81 @@ components:
         - pages
         - bookmarks
         - notes
+
+    BookFileMetadata:
+      type: object
+      properties:
+        id:
+          type: string
+        bookId:
+          type: string
+        originalFilename:
+          type: string
+        filePath:
+          type: string
+        fileSizeBytes:
+          type: integer
+        mimeType:
+          type: string
+        checksumSha256:
+          type: string
+        storageProvider:
+          type: string
+        uploadStatus:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - bookId
+        - originalFilename
+        - filePath
+        - fileSizeBytes
+        - checksumSha256
+
+    ProcessingJobStatus:
+      type: object
+      properties:
+        status:
+          type: string
+        stage:
+          type: string
+        progress:
+          type: integer
+      required:
+        - status
+        - stage
+        - progress
+
+    ImportBookResponse:
+      type: object
+      properties:
+        book:
+          $ref: "#/components/schemas/BookSummary"
+        file:
+          $ref: "#/components/schemas/BookFileMetadata"
+        job:
+          $ref: "#/components/schemas/ProcessingJobStatus"
+      required:
+        - book
+        - file
+
+    ImportBookPdfRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+          description: The PDF file to import
+        title:
+          type: string
+          description: Optional title override
+        author:
+          type: string
+          description: Optional author override
+        language:
+          type: string
+          description: Optional language override
+      required:
+        - file
+

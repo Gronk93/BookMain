@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "pdf-lib": "^1.17.1",
     "tsx": "catalog:"
   }
 }

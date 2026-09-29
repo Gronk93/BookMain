@@ -9,7 +9,8 @@ export const processingJobsTable = pgTable("processing_jobs", {
     .notNull()
     .references(() => booksTable.id, { onDelete: "cascade" }),
   jobType: varchar("job_type", { length: 50 }).notNull().default("pdf_ingestion"),
-  status: varchar("status", { length: 30 }).notNull().default("pending"), // pending | processing | completed | failed
+  status: varchar("status", { length: 30 }).notNull().default("pending"), // pending | running | completed | failed | cancelled
+  stage: varchar("stage", { length: 50 }).notNull().default("pending"),
   progressPercent: integer("progress_percent").notNull().default(0),
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -13,8 +13,9 @@ export const booksTable = pgTable("books", {
   totalPages: integer("total_pages").notNull().default(0),
   currentPage: integer("current_page").notNull().default(1),
   coverUrl: text("cover_url"),
-  sourceType: varchar("source_type", { length: 30 }).notNull().default("sample"), // sample | pdf_upload
-  processingStatus: varchar("processing_status", { length: 30 }).notNull().default("ready"), // ready | processing | failed
+  sourceType: varchar("source_type", { length: 30 }).notNull().default("sample"), // sample | pdf
+  processingStatus: varchar("processing_status", { length: 30 }).notNull().default("ready"), // uploading | validating | analyzing | ready_for_processing | processing | ready | failed
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

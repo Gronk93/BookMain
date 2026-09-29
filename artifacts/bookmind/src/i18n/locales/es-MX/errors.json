@@ -3,5 +3,15 @@
   "notFoundDescription": "La página que buscas no existe o ha sido movida.",
   "genericError": "Ha ocurrido un error inesperado.",
   "networkError": "No se pudo conectar con el servidor. Revisa tu conexión.",
-  "bookNotFound": "No pudimos encontrar este libro en tu biblioteca."
+  "bookNotFound": "No pudimos encontrar este libro en tu biblioteca.",
+  "PDF_EMPTY": "El archivo PDF está vacío (0 bytes).",
+  "PDF_TOO_LARGE": "El archivo supera el tamaño máximo permitido de 100 MB.",
+  "PDF_INVALID_TYPE": "Solo se permiten archivos con formato PDF.",
+  "PDF_INVALID_SIGNATURE": "El archivo no contiene una firma PDF binaria válida (%PDF-).",
+  "PDF_CORRUPTED": "El archivo PDF está dañado y no se puede procesar.",
+  "PDF_PASSWORD_PROTECTED": "Este PDF está protegido con contraseña y no puede procesarse.",
+  "PDF_DUPLICATE": "Este libro ya existe en tu biblioteca.",
+  "PDF_STORAGE_FAILED": "Error al guardar el archivo en el almacenamiento privado.",
+  "PDF_INSPECTION_FAILED": "No se pudieron inspeccionar los metadatos del PDF.",
+  "PDF_IMPORT_FAILED": "Ocurrió un error durante la importación del PDF."
 }
