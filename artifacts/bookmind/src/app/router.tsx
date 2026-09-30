@@ -6,6 +6,7 @@ import { ReaderPage } from "@/features/reader/pages/ReaderPage";
 import { SettingsPage } from "@/features/settings/pages/SettingsPage";
 import { LoginForm } from "@/features/auth/components/LoginForm";
 import { RegisterForm } from "@/features/auth/components/RegisterForm";
+import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
 import NotFound from "@/pages/not-found";
 import { ROUTES } from "./routes";
 
@@ -30,7 +31,13 @@ export function AppRouter() {
     <AppShell onToggleTheme={() => setDark(!dark)} isDark={dark}>
       <Switch>
         <Route path={ROUTES.HOME} component={LibraryPage} />
-        <Route path={ROUTES.READ} component={ReaderPage} />
+        <Route path={ROUTES.READ}>
+          {() => (
+            <ProtectedRoute>
+              <ReaderPage />
+            </ProtectedRoute>
+          )}
+        </Route>
         <Route path={ROUTES.SETTINGS} component={SettingsPage} />
         <Route path={ROUTES.LOGIN}>
           {() => (

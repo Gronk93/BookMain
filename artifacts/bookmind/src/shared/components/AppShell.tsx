@@ -18,6 +18,10 @@ export function AppShell({ children, onToggleTheme, isDark }: AppShellProps) {
 
   const inReader = location.startsWith("/read/");
 
+  if (inReader) {
+    return <div className="min-h-screen w-full">{children}</div>;
+  }
+
   return (
     <div className="grain min-h-screen bg-background text-foreground flex flex-col">
       <header className="mx-auto flex w-full max-w-[1320px] items-center justify-between px-5 py-5 sm:px-8">
