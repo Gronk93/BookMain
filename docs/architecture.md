@@ -1,4 +1,4 @@
-# BookMind Architecture & Technical Foundation (BM-PRD-03)
+# BookMind Architecture & Technical Foundation (BM-PRD-04)
 
 ## 1. Overview
 
@@ -10,14 +10,20 @@ graph TD
     API["API Server (Express 5)"]
     DB[(PostgreSQL / Drizzle ORM)]
     Storage["Private Local Storage Engine\n(users/{userId}/books/{bookId}/original/original.pdf)"]
+    Previews["Derived Page Previews\n(users/{userId}/books/{bookId}/derived/previews/{page}.png)"]
     Memory[(In-Memory Fallback Store)]
+    Orchestrator["Processing Orchestrator\n(PDF.js + Classifier + Normalizer + OCR)"]
 
     Client -->|REST API / Bearer & Cookies| API
-    Client -->|Multipart/Form-Data PDF Upload| API
-    Client -->|HTTP Range 206 PDF Streaming| API
+    Client -->|Dual View: Extracted Text / PNG Preview| API
     API -->|Live Connection| DB
     API -->|Offline / Test Fallback| Memory
     API -->|Private File Storage & Streaming| Storage
+    API -->|Page Preview Streaming| Previews
+    API -->|Async Background Processing| Orchestrator
+    Orchestrator -->|Read Original PDF| Storage
+    Orchestrator -->|Write Derived Previews| Previews
+    Orchestrator -->|Batch Upsert book_pages| DB
 ```
 
 ---
@@ -141,3 +147,40 @@ Translations are organized into 8 modular namespaces:
 - Web App Manifest configured at `/manifest.webmanifest`.
 - Service Worker registered at `/sw.js` with stale-while-revalidate strategy for assets and network-first for API routes.
 - Dual-layer data repository: if no live PostgreSQL instance is present, the API server seamlessly operates with an in-memory repository seeded with Kafka's *Metamorfosis* and Berger's *Ways of Seeing*, ensuring zero-friction local development and automated testing.
+
+---
+
+## 8. PDF Processing, Text Extraction & OCR Engine (BM-PRD-04)
+
+BM-PRD-04 transforms every stored PDF into real, classified, extracted pages persisted in `book_pages`, serving as the single source of truth for the reader view and future AI indexing.
+
+```text
+PDF ORIGINAL (Private Storage)
+   ↓
+EXTRACTION (PDF.js: text items, transformation matrix coordinates, image count)
+   ↓
+CLASSIFICATION (digital, scanned, hybrid, blank)
+   ↓
+NORMALIZATION (Unicode NFC, de-hyphenation, clean whitespace & control chars)
+   ↓
+PREVIEW RENDERING (@napi-rs/canvas -> derived/previews/{pageNumber}.png)
+   ↓
+SELECTIVE OCR (Triggered ONLY for scanned/hybrid pages with missing text)
+   ↓
+QUALITY EVALUATION (0-100 quality score, flag low_confidence if < 70)
+   ↓
+ATOMIC PERSISTENCE (Batch upsert book_pages with UNIQUE(book_id, page_number))
+   ↓
+READER READY (Live page stream & dual view: Extracted Text / Original Image)
+```
+
+### 8.1 Key Invariants & Safety Guarantees
+
+1. **"El original nunca se destruye"**: The original PDF in `users/{userId}/books/{bookId}/original/original.pdf` is strictly read-only and immutable. The SHA-256 checksum is verified before and after processing.
+2. **Page Correspondence**: 1-based page indexing guarantees that PDF page 48 is stored as `pageNumber = 48` (no off-by-one errors).
+3. **Completeness Invariant**: `COUNT(book_pages) === books.totalPages === job.processedPages`.
+4. **Selective OCR**: Digital pages bypass OCR completely (`ocrPages = 0`), saving compute and preserving native text fidelity.
+5. **Idempotent Reprocessing**: `POST /api/books/{bookId}/reprocess` uses PostgreSQL `ON CONFLICT (book_id, page_number) DO UPDATE`, guaranteeing re-runs never duplicate rows.
+6. **Strict Ownership Isolation**: Page details, lists, and rendered PNG preview streams (`/books/{bookId}/pages/{pageNumber}/preview`) enforce strict `userId` ownership; unauthorized requests return `404 Not Found`.
+7. **Privacy & Log Hygiene**: Zero raw page text or OCR transcripts are emitted to application logs; only high-level metrics and safe error codes are recorded.
+
