@@ -433,6 +433,7 @@ export const ImportBookPdfResponse = zod.object({
   "bookId": zod.string().optional(),
   "jobType": zod.string().optional(),
   "status": zod.string(),
+  "bookStatus": zod.string().optional(),
   "stage": zod.string(),
   "progress": zod.number().int(),
   "processedPages": zod.number().int().optional(),
@@ -458,6 +459,33 @@ export const GetBookProcessingStatusResponse = zod.object({
   "bookId": zod.string().optional(),
   "jobType": zod.string().optional(),
   "status": zod.string(),
+  "bookStatus": zod.string().optional(),
+  "stage": zod.string(),
+  "progress": zod.number().int(),
+  "processedPages": zod.number().int().optional(),
+  "totalPages": zod.number().int().optional(),
+  "attempt": zod.number().int().optional(),
+  "errorCode": zod.string().optional(),
+  "errorMessageSafe": zod.string().optional(),
+  "summary": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+
+/**
+ * Returns the status for a specific processing job ID
+ * @summary Get specific book processing job status
+ */
+export const GetBookProcessingJobStatusParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "jobId": zod.coerce.string()
+})
+
+export const GetBookProcessingJobStatusResponse = zod.object({
+  "id": zod.string().optional(),
+  "bookId": zod.string().optional(),
+  "jobType": zod.string().optional(),
+  "status": zod.string(),
+  "bookStatus": zod.string().optional(),
   "stage": zod.string(),
   "progress": zod.number().int(),
   "processedPages": zod.number().int().optional(),
@@ -608,6 +636,7 @@ export const ReprocessBookResponse = zod.object({
   "bookId": zod.string().optional(),
   "jobType": zod.string().optional(),
   "status": zod.string(),
+  "bookStatus": zod.string().optional(),
   "stage": zod.string(),
   "progress": zod.number().int(),
   "processedPages": zod.number().int().optional(),

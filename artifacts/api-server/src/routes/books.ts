@@ -262,7 +262,7 @@ router.delete("/books/:bookId", async (req, res) => {
   }
 });
 
-// BM-PRD-03: Book Processing Status
+// BM-PRD-03 & BM-PRD-04: Book Processing Status
 router.get("/books/:bookId/processing", async (req, res) => {
   try {
     const userId = req.user!.id;
@@ -282,6 +282,30 @@ router.get("/books/:bookId/processing", async (req, res) => {
     res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: err.message || "Failed to get processing status" },
+    });
+  }
+});
+
+// BM-PRD-04.1: Specific Job Processing Status
+router.get("/books/:bookId/processing/:jobId", async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { bookId, jobId } = req.params;
+
+    const status = await getBookProcessingStatus(bookId, userId, jobId);
+    if (!status) {
+      res.status(404).json({
+        success: false,
+        error: { code: "JOB_NOT_FOUND", message: "Processing job or book not found" },
+      });
+      return;
+    }
+
+    res.json(status);
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: err.message || "Failed to get processing job status" },
     });
   }
 });
@@ -519,7 +543,7 @@ router.post("/books/:bookId/reprocess", async (req, res) => {
     }
 
     const jobId = await getProcessingOrchestrator().reprocessBook(userId, bookId, options);
-    const status = await getBookProcessingStatus(bookId, userId);
+    const status = await getBookProcessingStatus(bookId, userId, jobId);
 
     res.status(202).json({
       id: jobId,
@@ -548,7 +572,7 @@ router.post("/books/:bookId/processing/cancel", async (req, res) => {
       return;
     }
 
-    const latestJob = await getLatestProcessingJob(bookId);
+    const latestJob = await getLatestProcessingJob(bookId, "pdf_processing");
     if (!latestJob) {
       res.status(404).json({
         success: false,

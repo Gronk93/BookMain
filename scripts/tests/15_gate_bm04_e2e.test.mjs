@@ -12,13 +12,14 @@ const fixturesDir = path.resolve(__dirname, "../fixtures");
 let userTokenA = null;
 let userTokenB = null;
 
-async function waitForJobCompletion(bookId, token, maxWaitMs = 15000) {
+async function waitForJobCompletion(bookId, token, maxWaitMs = 15000, jobId = null) {
   const start = Date.now();
+  const url = jobId ? `/books/${bookId}/processing/${jobId}` : `/books/${bookId}/processing`;
   while (Date.now() - start < maxWaitMs) {
-    const res = await apiRequest(`/books/${bookId}/processing`, {
+    const res = await apiRequest(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.data?.status === "completed" || res.data?.status === "failed") {
+    if ((res.data?.status === "completed" && res.data?.summary) || res.data?.status === "failed") {
       return res.data;
     }
     await new Promise((r) => setTimeout(r, 200));
@@ -64,6 +65,8 @@ test("CTQ-01 & CTQ-04: Digital PDF preserves original SHA-256 and does NOT trigg
 
   const job = await waitForJobCompletion(bookId, userTokenA);
   assert.equal(job.status, "completed");
+  assert.equal(job.bookStatus, "ready");
+  assert.ok(job.summary, "summary must not be null upon completion");
 
   // CTQ-04: ocrPages must be 0 for digital PDF
   assert.equal(job.summary.ocrPages, 0, "Digital PDF must not receive unnecessary OCR");
@@ -220,18 +223,22 @@ test("CTQ-08: Idempotent reprocessing with UNIQUE(book_id, page_number) constrai
   assert.equal(pages1.data.pages.length, 3);
 
   // Reprocess 1st time
-  await apiRequest(`/books/${bookId}/reprocess`, {
+  const rep1 = await apiRequest(`/books/${bookId}/reprocess`, {
     method: "POST",
     headers: { Authorization: `Bearer ${userTokenA}` },
   });
-  await waitForJobCompletion(bookId, userTokenA);
+  assert.equal(rep1.status, 202);
+  assert.ok(rep1.data.id, "Reprocess must return jobId");
+  await waitForJobCompletion(bookId, userTokenA, 15000, rep1.data.id);
 
   // Reprocess 2nd time
-  await apiRequest(`/books/${bookId}/reprocess`, {
+  const rep2 = await apiRequest(`/books/${bookId}/reprocess`, {
     method: "POST",
     headers: { Authorization: `Bearer ${userTokenA}` },
   });
-  await waitForJobCompletion(bookId, userTokenA);
+  assert.equal(rep2.status, 202);
+  assert.ok(rep2.data.id, "Reprocess must return jobId");
+  await waitForJobCompletion(bookId, userTokenA, 15000, rep2.data.id);
 
   // Verified page count is still strictly 3 (no duplicate rows)
   const pagesFinal = await apiRequest(`/books/${bookId}/pages`, {

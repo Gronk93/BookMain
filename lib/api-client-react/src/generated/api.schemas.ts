@@ -299,6 +299,7 @@ export interface ProcessingJobStatus {
   bookId?: string;
   jobType?: string;
   status: string;
+  bookStatus?: string;
   stage: string;
   progress: number;
   processedPages?: number;

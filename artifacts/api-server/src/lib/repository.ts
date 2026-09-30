@@ -760,8 +760,13 @@ export async function getBookFileByBookId(bookId: string): Promise<BookFile | nu
 export async function getBookProcessingStatus(
   bookId: string,
   userId: string,
+  jobId?: string,
 ): Promise<{
+  id?: string;
+  bookId?: string;
+  jobType?: string;
   status: string;
+  bookStatus?: string;
   stage: string;
   progress: number;
   processedPages: number;
@@ -779,42 +784,78 @@ export async function getBookProcessingStatus(
       .limit(1);
     if (!book[0]) return null;
 
+    const conditions = [eq(processingJobsTable.bookId, bookId)];
+    if (jobId) {
+      conditions.push(eq(processingJobsTable.id, jobId));
+    } else {
+      conditions.push(eq(processingJobsTable.jobType, "pdf_processing"));
+    }
+
     const job = await db
       .select()
       .from(processingJobsTable)
-      .where(eq(processingJobsTable.bookId, bookId))
-      .orderBy(desc(processingJobsTable.createdAt))
+      .where(and(...conditions))
+      .orderBy(desc(processingJobsTable.createdAt), desc(processingJobsTable.updatedAt))
       .limit(1);
 
+    const activeJob = job[0];
+
     return {
-      status: book[0].processingStatus,
-      stage: job[0]?.stage ?? "ready",
-      progress: job[0]?.progressPercent ?? 100,
-      processedPages: job[0]?.processedPages ?? (job[0]?.status === "completed" ? book[0].totalPages : 0),
-      totalPages: job[0]?.totalPages || book[0].totalPages,
-      summary: job[0]?.summary || null,
-      errorCode: job[0]?.errorCode || null,
-      errorMessage: job[0]?.errorMessageSafe || job[0]?.errorMessage || null,
+      id: activeJob?.id,
+      bookId,
+      jobType: activeJob?.jobType ?? "pdf_processing",
+      status: activeJob?.status ?? "pending",
+      bookStatus: book[0].processingStatus,
+      stage: activeJob?.stage ?? (book[0].processingStatus === "ready" ? "completed" : "ready"),
+      progress: activeJob?.progressPercent ?? (activeJob?.status === "completed" ? 100 : 0),
+      processedPages: activeJob?.processedPages ?? (activeJob?.status === "completed" ? book[0].totalPages : 0),
+      totalPages: activeJob?.totalPages || book[0].totalPages,
+      summary: activeJob?.summary || null,
+      errorCode: activeJob?.errorCode || null,
+      errorMessage: activeJob?.errorMessageSafe || activeJob?.errorMessage || null,
     };
   }
 
   const book = memoryStore.books.get(bookId);
   if (!book || book.userId !== userId || book.deletedAt) return null;
 
-  const jobs = Array.from(memoryStore.processingJobs.values()).filter((j) => j.bookId === bookId);
-  jobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const jobs = Array.from(memoryStore.processingJobs.values()).filter(
+    (j) => j.bookId === bookId && (jobId ? j.id === jobId : j.jobType === "pdf_processing"),
+  );
+  jobs.sort((a, b) => {
+    const timeDiff = b.createdAt.getTime() - a.createdAt.getTime();
+    if (timeDiff !== 0) return timeDiff;
+    return b.updatedAt.getTime() - a.updatedAt.getTime();
+  });
   const job = jobs[0];
 
   return {
-    status: book.processingStatus,
-    stage: job?.stage ?? "ready",
-    progress: job?.progressPercent ?? 100,
+    id: job?.id,
+    bookId,
+    jobType: job?.jobType ?? "pdf_processing",
+    status: job?.status ?? "pending",
+    bookStatus: book.processingStatus,
+    stage: job?.stage ?? (book.processingStatus === "ready" ? "completed" : "ready"),
+    progress: job?.progressPercent ?? (job?.status === "completed" ? 100 : 0),
     processedPages: job?.processedPages ?? (job?.status === "completed" ? book.totalPages : 0),
     totalPages: job?.totalPages || book.totalPages,
     summary: job?.summary || null,
     errorCode: job?.errorCode || null,
     errorMessage: job?.errorMessageSafe || job?.errorMessage || null,
   };
+}
+
+export async function getProcessingJobById(jobId: string): Promise<ProcessingJob | null> {
+  const db = getDb();
+  if (db && (await checkDatabaseHealth())) {
+    const res = await db
+      .select()
+      .from(processingJobsTable)
+      .where(eq(processingJobsTable.id, jobId))
+      .limit(1);
+    return res[0] || null;
+  }
+  return memoryStore.processingJobs.get(jobId) || null;
 }
 
 export async function getLatestProcessingJob(
@@ -831,7 +872,7 @@ export async function getLatestProcessingJob(
       .select()
       .from(processingJobsTable)
       .where(and(...conditions))
-      .orderBy(desc(processingJobsTable.createdAt))
+      .orderBy(desc(processingJobsTable.createdAt), desc(processingJobsTable.updatedAt))
       .limit(1);
 
     return res[0] || null;
@@ -840,7 +881,11 @@ export async function getLatestProcessingJob(
   const jobs = Array.from(memoryStore.processingJobs.values()).filter(
     (j) => j.bookId === bookId && (!jobType || j.jobType === jobType),
   );
-  jobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  jobs.sort((a, b) => {
+    const timeDiff = b.createdAt.getTime() - a.createdAt.getTime();
+    if (timeDiff !== 0) return timeDiff;
+    return b.updatedAt.getTime() - a.updatedAt.getTime();
+  });
   return jobs[0] || null;
 }
 

@@ -50,7 +50,7 @@ before(async () => {
     const statusRes = await apiRequest(`/books/${bookIdA}/processing`, {
       headers: { Authorization: `Bearer ${userTokenA}` },
     });
-    if (statusRes.data?.status === "completed") {
+    if (statusRes.data?.status === "completed" && statusRes.data?.summary) {
       break;
     }
     await new Promise((r) => setTimeout(r, 200));
@@ -134,14 +134,16 @@ test("14.5 - CTQ-08: POST /books/:id/reprocess is idempotent and does not duplic
   });
 
   assert.equal(reprocessRes.status, 202, "Reprocess must return 202 Accepted");
+  const jobId = reprocessRes.data.id;
+  assert.ok(jobId, "Reprocess must return jobId");
 
   // Wait for reprocess to finish
   const startTime = Date.now();
   while (Date.now() - startTime < 15000) {
-    const statusRes = await apiRequest(`/books/${bookIdA}/processing`, {
+    const statusRes = await apiRequest(`/books/${bookIdA}/processing/${jobId}`, {
       headers: { Authorization: `Bearer ${userTokenA}` },
     });
-    if (statusRes.data?.status === "completed") {
+    if (statusRes.data?.status === "completed" && statusRes.data?.summary) {
       break;
     }
     await new Promise((r) => setTimeout(r, 200));

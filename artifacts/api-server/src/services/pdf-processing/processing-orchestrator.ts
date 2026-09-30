@@ -89,7 +89,7 @@ export class ProcessingOrchestrator {
     bookId: string,
     options: ProcessBookOptions = {},
   ): Promise<string> {
-    const existingJob = await getLatestProcessingJob(bookId);
+    const existingJob = await getLatestProcessingJob(bookId, "pdf_processing");
     const nextAttempt = (existingJob?.attempt || 1) + 1;
     const jobId = crypto.randomUUID();
 
@@ -376,7 +376,7 @@ export class ProcessingOrchestrator {
         summary,
       });
 
-      await updateBookStatus(bookId, "completed");
+      await updateBookStatus(bookId, "ready");
     } catch (err: any) {
       await updateProcessingJob(jobId, {
         status: "failed",

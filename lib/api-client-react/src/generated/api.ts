@@ -1562,6 +1562,89 @@ export function useGetBookProcessingStatus<TData = Awaited<ReturnType<typeof get
 
 
 
+export const getGetBookProcessingJobStatusUrl = (bookId: string,
+    jobId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/processing/${jobId}`
+}
+
+/**
+ * Returns the status for a specific processing job ID
+ * @summary Get specific book processing job status
+ */
+export const getBookProcessingJobStatus = async (bookId: string,
+    jobId: string, options?: Parameters<typeof customFetch>[1]): Promise<ProcessingJobStatus> => {
+
+  return customFetch<ProcessingJobStatus>(getGetBookProcessingJobStatusUrl(bookId,jobId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBookProcessingJobStatusQueryKey = (bookId: string,
+    jobId: string,) => {
+    return [
+    `/api/books/${bookId}/processing/${jobId}`
+    ] as const;
+    }
+
+
+export const getGetBookProcessingJobStatusQueryOptions = <TData = Awaited<ReturnType<typeof getBookProcessingJobStatus>>, TError = ErrorType<ErrorResponse>>(bookId: string,
+    jobId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookProcessingJobStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBookProcessingJobStatusQueryKey(bookId,jobId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookProcessingJobStatus>>> = ({ signal }) => getBookProcessingJobStatus(bookId,jobId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined && jobId !== null && jobId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBookProcessingJobStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBookProcessingJobStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getBookProcessingJobStatus>>>
+export type GetBookProcessingJobStatusQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get specific book processing job status
+ */
+
+export function useGetBookProcessingJobStatus<TData = Awaited<ReturnType<typeof getBookProcessingJobStatus>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string,
+    jobId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookProcessingJobStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBookProcessingJobStatusQueryOptions(bookId,jobId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetBookFileMetadataUrl = (bookId: string,) => {
 
 

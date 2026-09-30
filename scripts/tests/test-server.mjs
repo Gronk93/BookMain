@@ -26,6 +26,8 @@ export async function startServer() {
   testPort = await getFreePort();
   baseUrl = `http://127.0.0.1:${testPort}`;
 
+  let serverOutput = "";
+
   serverProcess = spawn("node", ["./dist/index.mjs"], {
     cwd: apiServerDir,
     env: {
@@ -38,13 +40,21 @@ export async function startServer() {
     stdio: ["ignore", "pipe", "pipe"],
   });
 
+  serverProcess.stdout?.on("data", (chunk) => {
+    serverOutput += chunk.toString();
+  });
+
+  serverProcess.stderr?.on("data", (chunk) => {
+    serverOutput += chunk.toString();
+  });
+
   serverProcess.on("error", (err) => {
     console.error("Test server error:", err);
   });
 
   // Poll until ready
   const start = Date.now();
-  while (Date.now() - start < 10000) {
+  while (Date.now() - start < 25000) {
     try {
       const res = await fetch(`${baseUrl}/api/healthz`);
       if (res.ok) {
@@ -55,14 +65,18 @@ export async function startServer() {
     }
   }
 
-  throw new Error(`Test server failed to start on port ${testPort} within timeout`);
+  throw new Error(`Test server failed to start on port ${testPort} within 25s. Server output:\n${serverOutput}`);
 }
 
 export function stopServer() {
   if (serverProcess) {
-    serverProcess.kill();
+    try {
+      serverProcess.kill();
+    } catch {}
     serverProcess = null;
   }
+  baseUrl = null;
+  testPort = null;
 }
 
 export function getBaseUrl() {

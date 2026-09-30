@@ -558,6 +558,43 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /books/{bookId}/processing/{jobId}:
+    get:
+      operationId: getBookProcessingJobStatus
+      tags: [books]
+      summary: Get specific book processing job status
+      description: Returns the status for a specific processing job ID
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Specific processing job status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProcessingJobStatus"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Job or book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /books/{bookId}/file:
     get:
       operationId: getBookFileMetadata
@@ -1301,6 +1338,8 @@ components:
         jobType:
           type: string
         status:
+          type: string
+        bookStatus:
           type: string
         stage:
           type: string
