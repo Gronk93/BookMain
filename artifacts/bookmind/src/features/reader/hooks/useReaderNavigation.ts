@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { type ReaderLayout } from "./useReaderPreferences";
 
 interface UseReaderNavigationOptions {
@@ -12,17 +12,27 @@ export function useReaderNavigation({
   initialPage = 1,
   layout,
 }: UseReaderNavigationOptions) {
+  const hadInitialUrlPage = useRef<boolean>(Boolean(new URLSearchParams(window.location.search).get("page")));
+  const hasUserNavigated = useRef(false);
+
   // Determine starting page: URL query ?page=N wins over initialPage
   const [currentPage, setCurrentPage] = useState<number>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const qPage = parseInt(params.get("page") || "", 10);
       if (!isNaN(qPage) && qPage >= 1) {
-        return Math.min(qPage, Math.max(1, totalPages || 1));
+        return qPage;
       }
     } catch {}
     return Math.max(1, initialPage || 1);
   });
+
+  // Hydrate initialPage from progress when it loads from API
+  useEffect(() => {
+    if (!hasUserNavigated.current && !hadInitialUrlPage.current && initialPage > 1 && totalPages > 1) {
+      setCurrentPage(Math.min(initialPage, totalPages));
+    }
+  }, [initialPage, totalPages]);
 
   // Clamp when totalPages becomes known or changes
   useEffect(() => {
@@ -59,6 +69,7 @@ export function useReaderNavigation({
   const goToPage = useCallback(
     (page: number) => {
       if (isNaN(page)) return;
+      hasUserNavigated.current = true;
       const safe = Math.max(1, Math.min(totalPages || 1, Math.floor(page)));
       setCurrentPage(safe);
     },
