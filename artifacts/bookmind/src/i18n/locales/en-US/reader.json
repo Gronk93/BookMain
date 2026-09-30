@@ -14,6 +14,12 @@
   "insightSelected": "Seeing is the first way we make meaning.",
   "insightUnselected": "Select a sentence to explore it with BookMind.",
   "insightExplanation": "Berger points to a simple order: before we explain the world with language, we have already begun to interpret it with our eyes. What we notice is never entirely neutral.",
-  "insightPrompt": "BookMind can help you slow down a sentence, connect it to the chapter, or find a simpler way to understand it.",
-  "basedOnCurrentPage": "Based on the current page"
+  "basedOnCurrentPage": "Based on the current page",
+  "preparingBook": "Preparing your book...",
+  "preparingBookDesc": "Extracting pages and optimizing content for reading.",
+  "viewText": "Text",
+  "viewOriginal": "Original",
+  "scannedPageNotice": "Scanned page with OCR",
+  "lowConfidenceNotice": "Low optical recognition confidence",
+  "emptyPageNotice": "This page contains no text."
 }

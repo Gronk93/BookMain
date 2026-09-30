@@ -15,11 +15,17 @@ import {
   getBookFile,
   getBookProcessingStatus,
   deleteBook,
+  getBookById,
+  getBookPages,
+  getBookPage,
+  getLatestProcessingJob,
 } from "../lib/repository";
 import { ingestPdf } from "../services/pdf-ingestion/pdf-ingestion.service";
 import { PdfIngestionError } from "../services/pdf-ingestion/errors";
 import { getMaxPdfSizeMb } from "../services/pdf-ingestion/pdf-validator";
 import { getStorageProvider } from "../services/storage/local-storage.provider";
+import { getProcessingOrchestrator } from "../services/pdf-processing/processing-orchestrator";
+import { buildPagePreviewLogicalPath } from "../services/pdf-processing/page-renderer";
 
 const router: IRouter = Router();
 
@@ -108,6 +114,13 @@ router.post("/books/import", handlePdfUpload, async (req, res) => {
       author,
       language,
     });
+
+    // BM-PRD-04: Automatically enqueue PDF processing pipeline
+    getProcessingOrchestrator()
+      .enqueueProcessing(userId, result.book.id)
+      .catch((err) => {
+        console.error("Failed to enqueue PDF processing:", err);
+      });
 
     res.status(201).json({
       book: {
@@ -374,6 +387,182 @@ router.get("/books/:bookId/original", async (req, res) => {
     res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: err.message || "Failed to stream PDF file" },
+    });
+  }
+});
+
+// BM-PRD-04: List processed pages for a book
+router.get("/books/:bookId/pages", async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { bookId } = req.params;
+    const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 1000;
+
+    const result = await getBookPages(bookId, userId, { page, limit });
+    if (!result) {
+      res.status(404).json({
+        success: false,
+        error: { code: "BOOK_NOT_FOUND", message: "Book not found or access denied" },
+      });
+      return;
+    }
+
+    res.json({
+      bookId,
+      totalPages: result.total,
+      pages: result.pages,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: err.message || "Failed to get book pages" },
+    });
+  }
+});
+
+// BM-PRD-04: Get single page details and coordinates
+router.get("/books/:bookId/pages/:pageNumber", async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { bookId, pageNumber: pageNumberStr } = req.params;
+    const pageNumber = parseInt(pageNumberStr, 10);
+
+    if (isNaN(pageNumber) || pageNumber < 1) {
+      res.status(400).json({
+        success: false,
+        error: { code: "INVALID_PAGE", message: "Invalid page number" },
+      });
+      return;
+    }
+
+    const page = await getBookPage(bookId, pageNumber, userId);
+    if (!page) {
+      res.status(404).json({
+        success: false,
+        error: { code: "PAGE_NOT_FOUND", message: "Page not found or access denied" },
+      });
+      return;
+    }
+
+    res.json(page);
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: err.message || "Failed to get book page" },
+    });
+  }
+});
+
+// BM-PRD-04: Stream rendered preview image for a page
+router.get("/books/:bookId/pages/:pageNumber/preview", async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { bookId, pageNumber: pageNumberStr } = req.params;
+    const pageNumber = parseInt(pageNumberStr, 10);
+
+    if (isNaN(pageNumber) || pageNumber < 1) {
+      res.status(400).json({
+        success: false,
+        error: { code: "INVALID_PAGE", message: "Invalid page number" },
+      });
+      return;
+    }
+
+    // CTQ-07: Verify user isolation - only book owner can access preview
+    const page = await getBookPage(bookId, pageNumber, userId);
+    if (!page) {
+      res.status(404).json({
+        success: false,
+        error: { code: "PAGE_NOT_FOUND", message: "Page preview not found or access denied" },
+      });
+      return;
+    }
+
+    const previewLogicalPath = page.previewPath || buildPagePreviewLogicalPath(userId, bookId, pageNumber, "png");
+    const storage = getStorageProvider();
+    const exists = await storage.exists(previewLogicalPath);
+
+    if (!exists) {
+      res.status(404).json({
+        success: false,
+        error: { code: "PREVIEW_NOT_FOUND", message: "Page preview image not found" },
+      });
+      return;
+    }
+
+    res.setHeader("Content-Type", "image/png");
+    const stream = await storage.get(previewLogicalPath);
+    stream.pipe(res);
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: err.message || "Failed to stream page preview" },
+    });
+  }
+});
+
+// BM-PRD-04: Reprocess book pages idempotently
+router.post("/books/:bookId/reprocess", async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { bookId } = req.params;
+    const options = req.body || {};
+
+    const book = await getBookById(bookId);
+    if (!book || book.userId !== userId || book.deletedAt) {
+      res.status(404).json({
+        success: false,
+        error: { code: "BOOK_NOT_FOUND", message: "Book not found or access denied" },
+      });
+      return;
+    }
+
+    const jobId = await getProcessingOrchestrator().reprocessBook(userId, bookId, options);
+    const status = await getBookProcessingStatus(bookId, userId);
+
+    res.status(202).json({
+      id: jobId,
+      ...status,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: err.message || "Failed to trigger reprocess" },
+    });
+  }
+});
+
+// BM-PRD-04: Cancel active processing job
+router.post("/books/:bookId/processing/cancel", async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { bookId } = req.params;
+
+    const book = await getBookById(bookId);
+    if (!book || book.userId !== userId || book.deletedAt) {
+      res.status(404).json({
+        success: false,
+        error: { code: "BOOK_NOT_FOUND", message: "Book not found or access denied" },
+      });
+      return;
+    }
+
+    const latestJob = await getLatestProcessingJob(bookId);
+    if (!latestJob) {
+      res.status(404).json({
+        success: false,
+        error: { code: "JOB_NOT_FOUND", message: "No active processing job found for book" },
+      });
+      return;
+    }
+
+    await getProcessingOrchestrator().cancelJob(latestJob.id);
+    res.json({ success: true, message: "Processing job cancelled" });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: err.message || "Failed to cancel processing job" },
     });
   }
 });

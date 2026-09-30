@@ -171,9 +171,46 @@ export interface BookPage {
   id: string;
   bookId: string;
   pageNumber: number;
+  pageType?: string;
+  rawText?: string;
+  normalizedText?: string;
   textContent: string;
+  textSource?: string;
+  characterCount?: number;
+  wordCount?: number;
+  ocrRequired?: boolean;
+  ocrStatus?: string;
   ocrConfidence?: number | null;
+  qualityScore?: number;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  previewUrl?: string;
   isBlank?: boolean;
+}
+
+export interface TextBlock {
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  confidence?: number;
+}
+
+export type BookPageDetail = BookPage & {
+  textBlocks?: TextBlock[];
+};
+
+export interface BookPagesListResponse {
+  bookId: string;
+  totalPages: number;
+  pages: BookPage[];
+}
+
+export interface ReprocessBookRequest {
+  forceOcr?: boolean;
+  priority?: string;
 }
 
 export interface ReadingProgress {
@@ -255,10 +292,21 @@ export interface BookFileMetadata {
   createdAt?: string;
 }
 
+export type ProcessingJobStatusSummary = { [key: string]: unknown };
+
 export interface ProcessingJobStatus {
+  id?: string;
+  bookId?: string;
+  jobType?: string;
   status: string;
   stage: string;
   progress: number;
+  processedPages?: number;
+  totalPages?: number;
+  attempt?: number;
+  errorCode?: string;
+  errorMessageSafe?: string;
+  summary?: ProcessingJobStatusSummary;
 }
 
 export interface ImportBookResponse {

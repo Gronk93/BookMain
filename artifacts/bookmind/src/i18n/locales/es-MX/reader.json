@@ -14,6 +14,12 @@
   "insightSelected": "La mirada es la primera forma en que otorgamos sentido.",
   "insightUnselected": "Selecciona una frase para explorarla con BookMind.",
   "insightExplanation": "Berger señala un orden fundamental: antes de explicar el mundo con el lenguaje, ya hemos comenzado a interpretarlo con nuestros ojos. Lo que percibimos nunca es del todo neutral.",
-  "insightPrompt": "BookMind puede ayudarte a pausar en una idea, conectarla con el capítulo o encontrar una forma más clara de comprenderla.",
-  "basedOnCurrentPage": "Basado en la página actual"
+  "basedOnCurrentPage": "Basado en la página actual",
+  "preparingBook": "Estamos preparando tu libro...",
+  "preparingBookDesc": "Extrayendo páginas y optimizando el contenido para lectura.",
+  "viewText": "Texto",
+  "viewOriginal": "Original",
+  "scannedPageNotice": "Página escaneada con OCR",
+  "lowConfidenceNotice": "Reconocimiento con baja confianza óptica",
+  "emptyPageNotice": "Esta página no contiene texto."
 }

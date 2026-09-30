@@ -39,6 +39,68 @@ async function generate() {
   // 5. corrupt.pdf (valid signature followed by corrupted data)
   await fsp.writeFile(path.join(fixturesDir, "corrupt.pdf"), "%PDF-1.4\nCorrupted binary garbage that cannot be parsed by pdf-lib %%EOF");
 
+  // Tiny 1x1 PNG image buffer for embedding into scanned/hybrid pages
+  const samplePngBuffer = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  );
+
+  // 6. digital-5-pages.pdf (pure native digital text, >80 chars per page, no images)
+  const docDigital = await PDFDocument.create();
+  docDigital.setTitle("Ensayo sobre la Percepcion");
+  docDigital.setAuthor("John Berger");
+  for (let i = 1; i <= 5; i++) {
+    const p = docDigital.addPage([500, 700]);
+    p.drawText(`Capitulo ${i}: El acto de ver precede a las palabras`, { x: 50, y: 640, size: 14 });
+    p.drawText(
+      `La vista llega antes que las palabras. El nino mira y reconoce antes de poder hablar. ` +
+        `Pero tambien hay otro sentido en el que el ver precede a las palabras. Es el ver lo que ` +
+        `establece nuestro lugar en el mundo circundante; explicamos ese mundo con palabras, ` +
+        `pero las palabras nunca pueden anular el hecho de que estamos rodeados por el. ` +
+        `Texto extenso de prueba para la pagina numero ${i} con suficiente densidad de caracteres.`,
+      { x: 50, y: 580, size: 10, maxWidth: 400, lineHeight: 14 },
+    );
+  }
+  const bytesDigital = await docDigital.save();
+  await fsp.writeFile(path.join(fixturesDir, "digital-5-pages.pdf"), bytesDigital);
+
+  // 7. scanned-3-pages.pdf (pure scanned pages, images present, 0 native text)
+  const docScanned = await PDFDocument.create();
+  docScanned.setTitle("Documento Historico Escaneado");
+  const embeddedImg1 = await docScanned.embedPng(samplePngBuffer);
+  for (let i = 1; i <= 3; i++) {
+    const p = docScanned.addPage([500, 700]);
+    p.drawImage(embeddedImg1, { x: 40, y: 40, width: 420, height: 620 });
+    // Zero native text drawn: completely image-based
+  }
+  const bytesScanned = await docScanned.save();
+  await fsp.writeFile(path.join(fixturesDir, "scanned-3-pages.pdf"), bytesScanned);
+
+  // 8. hybrid-3-pages.pdf (rich native text >= 80 chars AND embedded image)
+  const docHybrid = await PDFDocument.create();
+  docHybrid.setTitle("Manual Ilustrado con Texto");
+  const embeddedImg2 = await docHybrid.embedPng(samplePngBuffer);
+  for (let i = 1; i <= 3; i++) {
+    const p = docHybrid.addPage([500, 700]);
+    p.drawImage(embeddedImg2, { x: 50, y: 350, width: 400, height: 250 });
+    p.drawText(`Figura y Texto Explicativo ${i}`, { x: 50, y: 300, size: 14 });
+    p.drawText(
+      `Este documento representa una pagina hibrida segun la clasificacion de BookMind. ` +
+        `Combina un diagrama o ilustracion visual relevante con mas de ochenta caracteres ` +
+        `de texto explicativo nativo que puede ser leido directamente sin requerir OCR forzoso.`,
+      { x: 50, y: 260, size: 10, maxWidth: 400, lineHeight: 14 },
+    );
+  }
+  const bytesHybrid = await docHybrid.save();
+  await fsp.writeFile(path.join(fixturesDir, "hybrid-3-pages.pdf"), bytesHybrid);
+
+  // 9. blank-page.pdf (empty page, no text and no images)
+  const docBlank = await PDFDocument.create();
+  docBlank.setTitle("Documento con Pagina en Blanco");
+  docBlank.addPage([500, 700]);
+  const bytesBlank = await docBlank.save();
+  await fsp.writeFile(path.join(fixturesDir, "blank-page.pdf"), bytesBlank);
+
   console.log("All PDF fixtures generated successfully in scripts/fixtures/");
 }
 

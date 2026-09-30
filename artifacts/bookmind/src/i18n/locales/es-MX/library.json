@@ -40,5 +40,9 @@
   "deleteBook": "Eliminar libro",
   "deleteConfirm": "¿Estás seguro de que deseas eliminar este libro y su archivo original?",
   "originalPdf": "PDF Original",
-  "downloadOriginal": "Descargar PDF Original"
+  "downloadOriginal": "Descargar PDF Original",
+  "statusReprocessing": "Reprocesando...",
+  "reprocess": "Reprocesar libro",
+  "ocrBadge": "OCR",
+  "lowConfidence": "Baja confianza"
 }

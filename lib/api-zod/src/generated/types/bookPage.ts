@@ -10,7 +10,20 @@ export interface BookPage {
   id: string;
   bookId: string;
   pageNumber: number;
+  pageType?: string;
+  rawText?: string;
+  normalizedText?: string;
   textContent: string;
+  textSource?: string;
+  characterCount?: number;
+  wordCount?: number;
+  ocrRequired?: boolean;
+  ocrStatus?: string;
   ocrConfidence?: number | null;
+  qualityScore?: number;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  previewUrl?: string;
   isBlank?: boolean;
 }

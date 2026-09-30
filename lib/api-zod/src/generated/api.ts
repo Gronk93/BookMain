@@ -192,8 +192,21 @@ export const GetBookDetailsResponse = zod.object({
   "id": zod.string(),
   "bookId": zod.string(),
   "pageNumber": zod.number().int(),
+  "pageType": zod.string().optional(),
+  "rawText": zod.string().optional(),
+  "normalizedText": zod.string().optional(),
   "textContent": zod.string(),
-  "ocrConfidence": zod.number().int().nullish(),
+  "textSource": zod.string().optional(),
+  "characterCount": zod.number().int().optional(),
+  "wordCount": zod.number().int().optional(),
+  "ocrRequired": zod.boolean().optional(),
+  "ocrStatus": zod.string().optional(),
+  "ocrConfidence": zod.number().nullish(),
+  "qualityScore": zod.number().int().optional(),
+  "width": zod.number().int().optional(),
+  "height": zod.number().int().optional(),
+  "rotation": zod.number().int().optional(),
+  "previewUrl": zod.string().optional(),
   "isBlank": zod.boolean().optional()
 })),
   "progress": zod.object({
@@ -416,9 +429,18 @@ export const ImportBookPdfResponse = zod.object({
   "createdAt": zod.string().optional()
 }),
   "job": zod.object({
+  "id": zod.string().optional(),
+  "bookId": zod.string().optional(),
+  "jobType": zod.string().optional(),
   "status": zod.string(),
   "stage": zod.string(),
-  "progress": zod.number().int()
+  "progress": zod.number().int(),
+  "processedPages": zod.number().int().optional(),
+  "totalPages": zod.number().int().optional(),
+  "attempt": zod.number().int().optional(),
+  "errorCode": zod.string().optional(),
+  "errorMessageSafe": zod.string().optional(),
+  "summary": zod.record(zod.string(), zod.unknown()).optional()
 }).optional()
 })
 
@@ -432,9 +454,18 @@ export const GetBookProcessingStatusParams = zod.object({
 })
 
 export const GetBookProcessingStatusResponse = zod.object({
+  "id": zod.string().optional(),
+  "bookId": zod.string().optional(),
+  "jobType": zod.string().optional(),
   "status": zod.string(),
   "stage": zod.string(),
-  "progress": zod.number().int()
+  "progress": zod.number().int(),
+  "processedPages": zod.number().int().optional(),
+  "totalPages": zod.number().int().optional(),
+  "attempt": zod.number().int().optional(),
+  "errorCode": zod.string().optional(),
+  "errorMessageSafe": zod.string().optional(),
+  "summary": zod.record(zod.string(), zod.unknown()).optional()
 })
 
 
@@ -469,5 +500,136 @@ export const DownloadBookOriginalPdfParams = zod.object({
 })
 
 export const DownloadBookOriginalPdfResponse = zod.unknown()
+
+
+/**
+ * Returns list of pages with metadata, text content, and classification
+ * @summary Get all processed pages for a book
+ */
+export const GetBookPagesParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const GetBookPagesResponse = zod.object({
+  "bookId": zod.string(),
+  "totalPages": zod.number().int(),
+  "pages": zod.array(zod.object({
+  "id": zod.string(),
+  "bookId": zod.string(),
+  "pageNumber": zod.number().int(),
+  "pageType": zod.string().optional(),
+  "rawText": zod.string().optional(),
+  "normalizedText": zod.string().optional(),
+  "textContent": zod.string(),
+  "textSource": zod.string().optional(),
+  "characterCount": zod.number().int().optional(),
+  "wordCount": zod.number().int().optional(),
+  "ocrRequired": zod.boolean().optional(),
+  "ocrStatus": zod.string().optional(),
+  "ocrConfidence": zod.number().nullish(),
+  "qualityScore": zod.number().int().optional(),
+  "width": zod.number().int().optional(),
+  "height": zod.number().int().optional(),
+  "rotation": zod.number().int().optional(),
+  "previewUrl": zod.string().optional(),
+  "isBlank": zod.boolean().optional()
+}))
+})
+
+
+/**
+ * Returns page text, coordinates, preview url, and classification
+ * @summary Get details and bounding boxes for a single page
+ */
+export const GetBookPageParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "pageNumber": zod.coerce.number().int()
+})
+
+export const GetBookPageResponse = zod.object({
+  "id": zod.string(),
+  "bookId": zod.string(),
+  "pageNumber": zod.number().int(),
+  "pageType": zod.string().optional(),
+  "rawText": zod.string().optional(),
+  "normalizedText": zod.string().optional(),
+  "textContent": zod.string(),
+  "textSource": zod.string().optional(),
+  "characterCount": zod.number().int().optional(),
+  "wordCount": zod.number().int().optional(),
+  "ocrRequired": zod.boolean().optional(),
+  "ocrStatus": zod.string().optional(),
+  "ocrConfidence": zod.number().nullish(),
+  "qualityScore": zod.number().int().optional(),
+  "width": zod.number().int().optional(),
+  "height": zod.number().int().optional(),
+  "rotation": zod.number().int().optional(),
+  "previewUrl": zod.string().optional(),
+  "isBlank": zod.boolean().optional()
+}).and(zod.object({
+  "textBlocks": zod.array(zod.object({
+  "text": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "confidence": zod.number().optional()
+})).optional()
+}))
+
+
+/**
+ * Streams rendered PNG/WebP preview image
+ * @summary Get rendered preview image for a page
+ */
+export const GetBookPagePreviewParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "pageNumber": zod.coerce.number().int()
+})
+
+export const GetBookPagePreviewResponse = zod.unknown()
+
+
+/**
+ * Re-runs extraction, classification, preview generation, and OCR idempotently
+ * @summary Reprocess book pages
+ */
+export const ReprocessBookParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const ReprocessBookBody = zod.object({
+  "forceOcr": zod.boolean().optional(),
+  "priority": zod.string().optional()
+})
+
+export const ReprocessBookResponse = zod.object({
+  "id": zod.string().optional(),
+  "bookId": zod.string().optional(),
+  "jobType": zod.string().optional(),
+  "status": zod.string(),
+  "stage": zod.string(),
+  "progress": zod.number().int(),
+  "processedPages": zod.number().int().optional(),
+  "totalPages": zod.number().int().optional(),
+  "attempt": zod.number().int().optional(),
+  "errorCode": zod.string().optional(),
+  "errorMessageSafe": zod.string().optional(),
+  "summary": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+
+/**
+ * Cancels an in-progress or queued processing job for a book
+ * @summary Cancel active processing job
+ */
+export const CancelBookProcessingParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const CancelBookProcessingResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
 
 

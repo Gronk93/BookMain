@@ -5,9 +5,19 @@
  * BookMind Foundation API Specification (BM-PRD-02)
  * OpenAPI spec version: 0.2.0
  */
+import type { ProcessingJobStatusSummary } from './processingJobStatusSummary';
 
 export interface ProcessingJobStatus {
+  id?: string;
+  bookId?: string;
+  jobType?: string;
   status: string;
   stage: string;
   progress: number;
+  processedPages?: number;
+  totalPages?: number;
+  attempt?: number;
+  errorCode?: string;
+  errorMessageSafe?: string;
+  summary?: ProcessingJobStatusSummary;
 }

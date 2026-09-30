@@ -15,12 +15,13 @@ import {
   type Book,
   type BookFile,
   type BookPage,
+  type InsertBookPage,
   type ReadingProgress,
   type Bookmark,
   type Note,
   type ProcessingJob,
 } from "@workspace/db";
-import { eq, and, desc, isNull } from "drizzle-orm";
+import { eq, and, desc, isNull, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { hashPassword } from "./auth";
 export type {
@@ -29,6 +30,7 @@ export type {
   Book,
   BookFile,
   BookPage,
+  InsertBookPage,
   ReadingProgress,
   Bookmark,
   Note,
@@ -320,10 +322,28 @@ export async function seedBooksForUser(userId: string): Promise<void> {
       id: crypto.randomUUID(),
       bookId,
       pageNumber: p.pageNumber,
+      pageType: "digital",
+      rawText: p.textContent,
+      normalizedText: p.textContent,
       textContent: p.textContent,
+      textSource: "native",
+      characterCount: p.textContent.length,
+      wordCount: p.textContent.split(/\s+/).filter(Boolean).length,
+      ocrRequired: false,
+      ocrStatus: "skipped",
       ocrConfidence: 100,
+      qualityScore: 100,
+      width: 612,
+      height: 792,
+      rotation: 0,
+      previewPath: null,
+      textBlocks: [],
+      parserVersion: "seed-1.0.0",
+      ocrVersion: null,
       isBlank: false,
+      processedAt: now,
       createdAt: now,
+      updatedAt: now,
     }));
 
     if (useDb && db) {
@@ -636,7 +656,13 @@ export async function createBookWithFileAndJob(
     status: data.job?.status || "completed",
     stage: data.job?.stage || "ingestion_complete",
     progressPercent: data.job?.progressPercent ?? 100,
+    attempt: 1,
+    processedPages: data.book.totalPages,
+    totalPages: data.book.totalPages,
+    errorCode: null,
+    errorMessageSafe: null,
     errorMessage: null,
+    summary: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -703,39 +729,418 @@ export async function getBookFile(bookId: string, userId: string): Promise<BookF
   return memoryStore.bookFiles.get(bookId) || null;
 }
 
-export async function getBookProcessingStatus(
-  bookId: string,
-  userId: string,
-): Promise<{ status: string; progress: number; stage: string } | null> {
+export async function getBookById(bookId: string): Promise<Book | null> {
   const db = getDb();
   if (db && (await checkDatabaseHealth())) {
     const res = await db
-      .select({
-        book: booksTable,
-        job: processingJobsTable,
-      })
+      .select()
       .from(booksTable)
-      .leftJoin(processingJobsTable, eq(booksTable.id, processingJobsTable.bookId))
+      .where(and(eq(booksTable.id, bookId), isNull(booksTable.deletedAt)))
+      .limit(1);
+    return res[0] || null;
+  }
+  const book = memoryStore.books.get(bookId);
+  if (!book || book.deletedAt) return null;
+  return book;
+}
+
+export async function getBookFileByBookId(bookId: string): Promise<BookFile | null> {
+  const db = getDb();
+  if (db && (await checkDatabaseHealth())) {
+    const res = await db
+      .select()
+      .from(bookFilesTable)
+      .where(eq(bookFilesTable.bookId, bookId))
+      .limit(1);
+    return res[0] || null;
+  }
+  return memoryStore.bookFiles.get(bookId) || null;
+}
+
+export async function getBookProcessingStatus(
+  bookId: string,
+  userId: string,
+): Promise<{
+  status: string;
+  stage: string;
+  progress: number;
+  processedPages: number;
+  totalPages: number;
+  summary?: any;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+} | null> {
+  const db = getDb();
+  if (db && (await checkDatabaseHealth())) {
+    const book = await db
+      .select()
+      .from(booksTable)
       .where(and(eq(booksTable.id, bookId), eq(booksTable.userId, userId), isNull(booksTable.deletedAt)))
       .limit(1);
+    if (!book[0]) return null;
 
-    if (!res[0]) return null;
+    const job = await db
+      .select()
+      .from(processingJobsTable)
+      .where(eq(processingJobsTable.bookId, bookId))
+      .orderBy(desc(processingJobsTable.createdAt))
+      .limit(1);
+
     return {
-      status: res[0].book.processingStatus,
-      progress: res[0].job?.progressPercent ?? 100,
-      stage: res[0].job?.stage ?? "ready",
+      status: book[0].processingStatus,
+      stage: job[0]?.stage ?? "ready",
+      progress: job[0]?.progressPercent ?? 100,
+      processedPages: job[0]?.processedPages ?? (job[0]?.status === "completed" ? book[0].totalPages : 0),
+      totalPages: job[0]?.totalPages || book[0].totalPages,
+      summary: job[0]?.summary || null,
+      errorCode: job[0]?.errorCode || null,
+      errorMessage: job[0]?.errorMessageSafe || job[0]?.errorMessage || null,
     };
   }
 
   const book = memoryStore.books.get(bookId);
   if (!book || book.userId !== userId || book.deletedAt) return null;
 
-  const job = memoryStore.processingJobs.get(bookId);
+  const jobs = Array.from(memoryStore.processingJobs.values()).filter((j) => j.bookId === bookId);
+  jobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const job = jobs[0];
+
   return {
     status: book.processingStatus,
-    progress: job?.progressPercent ?? 100,
     stage: job?.stage ?? "ready",
+    progress: job?.progressPercent ?? 100,
+    processedPages: job?.processedPages ?? (job?.status === "completed" ? book.totalPages : 0),
+    totalPages: job?.totalPages || book.totalPages,
+    summary: job?.summary || null,
+    errorCode: job?.errorCode || null,
+    errorMessage: job?.errorMessageSafe || job?.errorMessage || null,
   };
+}
+
+export async function getLatestProcessingJob(
+  bookId: string,
+  jobType?: string,
+): Promise<ProcessingJob | null> {
+  const db = getDb();
+  if (db && (await checkDatabaseHealth())) {
+    const conditions = [eq(processingJobsTable.bookId, bookId)];
+    if (jobType) {
+      conditions.push(eq(processingJobsTable.jobType, jobType));
+    }
+    const res = await db
+      .select()
+      .from(processingJobsTable)
+      .where(and(...conditions))
+      .orderBy(desc(processingJobsTable.createdAt))
+      .limit(1);
+
+    return res[0] || null;
+  }
+
+  const jobs = Array.from(memoryStore.processingJobs.values()).filter(
+    (j) => j.bookId === bookId && (!jobType || j.jobType === jobType),
+  );
+  jobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return jobs[0] || null;
+}
+
+export async function createProcessingJob(data: {
+  id?: string;
+  bookId: string;
+  jobType: string;
+  status?: string;
+  stage?: string;
+  progressPercent?: number;
+  attempt?: number;
+  processedPages?: number;
+  totalPages?: number;
+  errorCode?: string | null;
+  errorMessageSafe?: string | null;
+  errorMessage?: string | null;
+  summary?: any;
+}): Promise<ProcessingJob> {
+  const db = getDb();
+  const now = new Date();
+  const id = data.id || crypto.randomUUID();
+
+  const newJob: ProcessingJob = {
+    id,
+    bookId: data.bookId,
+    jobType: data.jobType,
+    status: data.status || "pending",
+    stage: data.stage || "pending",
+    progressPercent: data.progressPercent ?? 0,
+    attempt: data.attempt ?? 1,
+    processedPages: data.processedPages ?? 0,
+    totalPages: data.totalPages ?? 0,
+    errorCode: data.errorCode || null,
+    errorMessageSafe: data.errorMessageSafe || null,
+    errorMessage: data.errorMessage || null,
+    summary: data.summary || null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  if (db && (await checkDatabaseHealth())) {
+    await db.insert(processingJobsTable).values(newJob);
+    return newJob;
+  }
+
+  memoryStore.processingJobs.set(id, newJob);
+  return newJob;
+}
+
+export async function updateProcessingJob(
+  jobId: string,
+  updates: Partial<ProcessingJob>,
+): Promise<ProcessingJob | null> {
+  const db = getDb();
+  const now = new Date();
+
+  if (db && (await checkDatabaseHealth())) {
+    const res = await db
+      .update(processingJobsTable)
+      .set({ ...updates, updatedAt: now })
+      .where(eq(processingJobsTable.id, jobId))
+      .returning();
+    return res[0] || null;
+  }
+
+  const existing = memoryStore.processingJobs.get(jobId);
+  if (!existing) return null;
+  const updated: ProcessingJob = {
+    ...existing,
+    ...updates,
+    updatedAt: now,
+  };
+  memoryStore.processingJobs.set(jobId, updated);
+  return updated;
+}
+
+export async function saveBookPagesBatch(
+  bookId: string,
+  pages: Array<{
+    pageNumber: number;
+    pageType?: string;
+    rawText?: string;
+    normalizedText?: string;
+    textContent?: string;
+    textSource?: string;
+    characterCount?: number;
+    wordCount?: number;
+    ocrRequired?: boolean;
+    ocrStatus?: string;
+    ocrConfidence?: number | null;
+    qualityScore?: number;
+    width?: number | null;
+    height?: number | null;
+    rotation?: number;
+    previewPath?: string | null;
+    textBlocks?: any;
+    parserVersion?: string | null;
+    ocrVersion?: string | null;
+    isBlank?: boolean;
+    processedAt?: Date | null;
+  }>,
+): Promise<void> {
+  const db = getDb();
+  const now = new Date();
+
+  const pagesToInsert: BookPage[] = pages.map((p) => ({
+    id: crypto.randomUUID(),
+    bookId,
+    pageNumber: p.pageNumber,
+    pageType: p.pageType || "digital",
+    rawText: p.rawText || "",
+    normalizedText: p.normalizedText || "",
+    textContent: p.textContent || p.normalizedText || "",
+    textSource: p.textSource || "native",
+    characterCount: p.characterCount ?? (p.normalizedText || "").length,
+    wordCount: p.wordCount ?? 0,
+    ocrRequired: p.ocrRequired ?? false,
+    ocrStatus: p.ocrStatus ?? "not_required",
+    ocrConfidence: p.ocrConfidence ?? null,
+    qualityScore: p.qualityScore ?? 100,
+    width: p.width ?? null,
+    height: p.height ?? null,
+    rotation: p.rotation ?? 0,
+    previewPath: p.previewPath ?? null,
+    textBlocks: p.textBlocks || [],
+    parserVersion: p.parserVersion || null,
+    ocrVersion: p.ocrVersion || null,
+    isBlank: p.isBlank ?? false,
+    processedAt: p.processedAt || now,
+    createdAt: now,
+    updatedAt: now,
+  }));
+
+  if (db && (await checkDatabaseHealth())) {
+    for (const page of pagesToInsert) {
+      await db
+        .insert(bookPagesTable)
+        .values(page)
+        .onConflictDoUpdate({
+          target: [bookPagesTable.bookId, bookPagesTable.pageNumber],
+          set: {
+            pageType: page.pageType,
+            rawText: page.rawText,
+            normalizedText: page.normalizedText,
+            textContent: page.textContent,
+            textSource: page.textSource,
+            characterCount: page.characterCount,
+            wordCount: page.wordCount,
+            ocrRequired: page.ocrRequired,
+            ocrStatus: page.ocrStatus,
+            ocrConfidence: page.ocrConfidence,
+            qualityScore: page.qualityScore,
+            width: page.width,
+            height: page.height,
+            rotation: page.rotation,
+            previewPath: page.previewPath,
+            textBlocks: page.textBlocks,
+            parserVersion: page.parserVersion,
+            ocrVersion: page.ocrVersion,
+            isBlank: page.isBlank,
+            processedAt: page.processedAt,
+            updatedAt: page.updatedAt,
+          },
+        });
+    }
+    return;
+  }
+
+  // Memory fallback
+  let existingPages = memoryStore.pages.get(bookId) || [];
+  for (const page of pagesToInsert) {
+    const idx = existingPages.findIndex((ep) => ep.pageNumber === page.pageNumber);
+    if (idx >= 0) {
+      existingPages[idx] = { ...existingPages[idx], ...page, updatedAt: now };
+    } else {
+      existingPages.push(page);
+    }
+  }
+  existingPages.sort((a, b) => a.pageNumber - b.pageNumber);
+  memoryStore.pages.set(bookId, existingPages);
+}
+
+export async function getBookPages(
+  bookId: string,
+  userId: string,
+  options?: { page?: number; limit?: number },
+): Promise<{
+  pages: Array<Omit<BookPage, "rawText" | "normalizedText" | "textContent" | "textBlocks">>;
+  total: number;
+} | null> {
+  const db = getDb();
+  const page = options?.page ?? 1;
+  const limit = options?.limit ?? 50;
+  const offset = (page - 1) * limit;
+
+  if (db && (await checkDatabaseHealth())) {
+    const book = await db
+      .select()
+      .from(booksTable)
+      .where(and(eq(booksTable.id, bookId), eq(booksTable.userId, userId), isNull(booksTable.deletedAt)))
+      .limit(1);
+    if (!book[0]) return null;
+
+    const totalRes = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(bookPagesTable)
+      .where(eq(bookPagesTable.bookId, bookId));
+    const total = Number(totalRes[0]?.count ?? 0);
+
+    const pages = await db
+      .select({
+        id: bookPagesTable.id,
+        bookId: bookPagesTable.bookId,
+        pageNumber: bookPagesTable.pageNumber,
+        pageType: bookPagesTable.pageType,
+        textSource: bookPagesTable.textSource,
+        characterCount: bookPagesTable.characterCount,
+        wordCount: bookPagesTable.wordCount,
+        ocrRequired: bookPagesTable.ocrRequired,
+        ocrStatus: bookPagesTable.ocrStatus,
+        ocrConfidence: bookPagesTable.ocrConfidence,
+        qualityScore: bookPagesTable.qualityScore,
+        width: bookPagesTable.width,
+        height: bookPagesTable.height,
+        rotation: bookPagesTable.rotation,
+        previewPath: bookPagesTable.previewPath,
+        parserVersion: bookPagesTable.parserVersion,
+        ocrVersion: bookPagesTable.ocrVersion,
+        isBlank: bookPagesTable.isBlank,
+        processedAt: bookPagesTable.processedAt,
+        createdAt: bookPagesTable.createdAt,
+        updatedAt: bookPagesTable.updatedAt,
+      })
+      .from(bookPagesTable)
+      .where(eq(bookPagesTable.bookId, bookId))
+      .orderBy(bookPagesTable.pageNumber)
+      .limit(limit)
+      .offset(offset);
+
+    return { pages, total };
+  }
+
+  const book = memoryStore.books.get(bookId);
+  if (!book || book.userId !== userId || book.deletedAt) return null;
+
+  const allPages = memoryStore.pages.get(bookId) || [];
+  const total = allPages.length;
+  const pages = allPages.slice(offset, offset + limit).map((p) => {
+    const { rawText, normalizedText, textContent, textBlocks, ...meta } = p;
+    return meta;
+  });
+
+  return { pages, total };
+}
+
+export async function getBookPage(
+  bookId: string,
+  pageNumber: number,
+  userId: string,
+): Promise<BookPage | null> {
+  const db = getDb();
+  if (db && (await checkDatabaseHealth())) {
+    const book = await db
+      .select()
+      .from(booksTable)
+      .where(and(eq(booksTable.id, bookId), eq(booksTable.userId, userId), isNull(booksTable.deletedAt)))
+      .limit(1);
+    if (!book[0]) return null;
+
+    const res = await db
+      .select()
+      .from(bookPagesTable)
+      .where(and(eq(bookPagesTable.bookId, bookId), eq(bookPagesTable.pageNumber, pageNumber)))
+      .limit(1);
+
+    return res[0] || null;
+  }
+
+  const book = memoryStore.books.get(bookId);
+  if (!book || book.userId !== userId || book.deletedAt) return null;
+
+  const pages = memoryStore.pages.get(bookId) || [];
+  return pages.find((p) => p.pageNumber === pageNumber) || null;
+}
+
+export async function updateBookStatus(
+  bookId: string,
+  status: string,
+): Promise<void> {
+  const db = getDb();
+  const now = new Date();
+  if (db && (await checkDatabaseHealth())) {
+    await db.update(booksTable).set({ processingStatus: status, updatedAt: now }).where(eq(booksTable.id, bookId));
+    return;
+  }
+  const b = memoryStore.books.get(bookId);
+  if (b) {
+    b.processingStatus = status;
+    b.updatedAt = now;
+  }
 }
 
 export async function deleteBook(

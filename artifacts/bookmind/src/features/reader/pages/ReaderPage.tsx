@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams } from "wouter";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Sparkles, NotebookPen, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, NotebookPen, X, FileText, Image as ImageIcon, AlertTriangle } from "lucide-react";
 import {
   useGetBookDetails,
   getGetBookDetailsQueryKey,
+  useGetBookPage,
+  getGetBookPageQueryKey,
   useUpdateReadingProgress,
   useCreateBookmark,
   useDeleteBookmark,
@@ -79,6 +81,7 @@ export function ReaderPage() {
 
   const [panel, setPanel] = useState<"none" | "insight" | "note">("none");
   const [selected, setSelected] = useState(false);
+  const [viewMode, setViewMode] = useState<"text" | "original">("text");
 
   // TanStack Query for book details
   const { data: apiDetails, refetch } = useGetBookDetails(bookId, {
@@ -95,7 +98,16 @@ export function ReaderPage() {
       const savedPage = localStorage.getItem(`bookmind-page-${bookId}`);
       if (savedPage) return Number(savedPage);
     } catch {}
-    return 48; // default to page 48
+    return 1; // default to page 1
+  });
+
+  // TanStack Query for individual processed page
+  const { data: pageData, isLoading: isPageLoading } = useGetBookPage(bookId, page, {
+    query: {
+      queryKey: getGetBookPageQueryKey(bookId, page),
+      enabled: !!user && !!bookId && page > 0,
+      staleTime: 60_000,
+    },
   });
 
   // Local bookmarks & notes cache for instant optimistic responsiveness
@@ -148,6 +160,16 @@ export function ReaderPage() {
 
   // Content for current page
   const content = getPageContent(page);
+
+  // Extracted paragraphs from real BM-04 processing or fallback
+  const paragraphs = useMemo(() => {
+    if (pageData?.normalizedText || pageData?.textContent) {
+      const raw = pageData.normalizedText || pageData.textContent || "";
+      const lines = raw.split(/\r?\n\s*\r?\n|\r?\n/).map((p) => p.trim()).filter((p) => p.length > 0);
+      return lines.length > 0 ? lines : [raw];
+    }
+    return content.paragraphs;
+  }, [pageData, content.paragraphs]);
 
   // Page navigation
   const goToPage = async (nextPageNumber: number) => {
@@ -321,50 +343,127 @@ export function ReaderPage() {
         {/* Main Reading Surface */}
         <main>
           <div className="mx-auto max-w-2xl">
-            <div className="mb-10 flex items-center justify-between text-muted-foreground">
+            <div className="mb-8 flex items-center justify-between text-muted-foreground">
               <span className="mono text-[10px] uppercase tracking-[0.18em]">
                 {currentCategory} · {percent}% {t("percentCompleted", { percent })}
               </span>
-              <button
-                className="rounded-full p-2 transition hover:bg-secondary hover-elevate"
-                onClick={() => setPanel(panel === "insight" ? "none" : "insight")}
-                aria-label={t("explainWithBookMind")}
-                title={t("explainWithBookMind")}
-              >
-                <Sparkles size={17} />
-              </button>
+
+              <div className="flex items-center gap-2">
+                {apiDetails?.book?.sourceType === "pdf" && (
+                  <div className="flex items-center rounded-lg border border-border/80 bg-secondary/50 p-0.5 text-xs">
+                    <button
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition text-[11px] ${
+                        viewMode === "text"
+                          ? "bg-background shadow-xs font-medium text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      onClick={() => setViewMode("text")}
+                    >
+                      <FileText size={11} />
+                      <span>{t("viewText")}</span>
+                    </button>
+                    <button
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition text-[11px] ${
+                        viewMode === "original"
+                          ? "bg-background shadow-xs font-medium text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      onClick={() => setViewMode("original")}
+                    >
+                      <ImageIcon size={11} />
+                      <span>{t("viewOriginal")}</span>
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  className="rounded-full p-2 transition hover:bg-secondary hover-elevate"
+                  onClick={() => setPanel(panel === "insight" ? "none" : "insight")}
+                  aria-label={t("explainWithBookMind")}
+                  title={t("explainWithBookMind")}
+                >
+                  <Sparkles size={17} />
+                </button>
+              </div>
             </div>
 
-            <article className="serif text-[21px] leading-[1.72] sm:text-[24px]">
-              <p className="mb-8 font-sans text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
-                {content.chapter}
-              </p>
-              <h1 className="mb-10 max-w-xl text-5xl leading-[0.98] tracking-[-0.045em] sm:text-6xl font-medium">
-                {content.title}
-              </h1>
+            {/* Preparation / In-Progress Screen */}
+            {apiDetails?.book?.processingStatus === "processing" && !pageData?.textContent ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center animate-rise-in">
+                <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+                  <Sparkles className="h-8 w-8 text-primary animate-pulse" />
+                </div>
+                <h2 className="serif text-2xl font-medium mb-2">{t("preparingBook")}</h2>
+                <p className="max-w-md text-sm text-muted-foreground mb-6">{t("preparingBookDesc")}</p>
+                <div className="h-1.5 w-64 overflow-hidden rounded-full bg-secondary">
+                  <div className="h-full rounded-full bg-primary animate-pulse" style={{ width: "65%" }} />
+                </div>
+              </div>
+            ) : viewMode === "original" ? (
+              /* Original Page Preview */
+              <div className="flex justify-center my-6 animate-rise-in">
+                <img
+                  src={`/api/books/${bookId}/pages/${page}/preview`}
+                  alt={`Página ${page}`}
+                  className="max-h-[75vh] w-auto rounded-lg shadow-lg border border-border object-contain"
+                />
+              </div>
+            ) : (
+              /* Clean Reading Text Surface */
+              <article className="serif text-[21px] leading-[1.72] sm:text-[24px]">
+                <div className="mb-6 flex items-center justify-between">
+                  <p className="font-sans text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
+                    {pageData?.pageType ? `${pageData.pageType.toUpperCase()} · PÁGINA ${page}` : content.chapter}
+                  </p>
 
-              {content.paragraphs.map((para, index) => (
-                <p key={index} className="mb-8">
-                  {index === 0 ? (
-                    <>
-                      <span
-                        className={`cursor-pointer transition-colors ${
-                          selected
-                            ? "rounded bg-[#D3A16E]/35 underline decoration-[#C7885D] decoration-2 underline-offset-4"
-                            : "hover:bg-[#D3A16E]/15"
-                        }`}
-                        onClick={() => setSelected(!selected)}
-                      >
-                        {para.slice(0, 67)}
+                  <div className="flex items-center gap-1.5">
+                    {pageData?.ocrRequired && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[9px] font-medium text-amber-600 dark:text-amber-400">
+                        <span>OCR</span>
                       </span>
-                      {para.slice(67)}
-                    </>
-                  ) : (
-                    para
-                  )}
-                </p>
-              ))}
-            </article>
+                    )}
+                    {pageData?.ocrStatus === "low_confidence" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[9px] font-medium text-red-600 dark:text-red-400">
+                        <AlertTriangle size={10} />
+                        <span>{t("lowConfidenceNotice")}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {!pageData && (
+                  <h1 className="mb-10 max-w-xl text-5xl leading-[0.98] tracking-[-0.045em] sm:text-6xl font-medium">
+                    {content.title}
+                  </h1>
+                )}
+
+                {paragraphs.length === 0 ? (
+                  <p className="italic text-muted-foreground my-8">{t("emptyPageNotice")}</p>
+                ) : (
+                  paragraphs.map((para, index) => (
+                    <p key={index} className="mb-8">
+                      {index === 0 && !pageData ? (
+                        <>
+                          <span
+                            className={`cursor-pointer transition-colors ${
+                              selected
+                                ? "rounded bg-[#D3A16E]/35 underline decoration-[#C7885D] decoration-2 underline-offset-4"
+                                : "hover:bg-[#D3A16E]/15"
+                            }`}
+                            onClick={() => setSelected(!selected)}
+                          >
+                            {para.slice(0, 67)}
+                          </span>
+                          {para.slice(67)}
+                        </>
+                      ) : (
+                        para
+                      )}
+                    </p>
+                  ))
+                )}
+              </article>
+            )}
 
             {/* Pagination Controls */}
             <div className="mt-14 flex items-center justify-between border-t border-border/70 pt-6">

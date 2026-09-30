@@ -40,5 +40,9 @@
   "deleteBook": "Delete book",
   "deleteConfirm": "Are you sure you want to delete this book and its original file?",
   "originalPdf": "Original PDF",
-  "downloadOriginal": "Download Original PDF"
+  "downloadOriginal": "Download Original PDF",
+  "statusReprocessing": "Reprocessing...",
+  "reprocess": "Reprocess book",
+  "ocrBadge": "OCR",
+  "lowConfidence": "Low confidence"
 }

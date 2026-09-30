@@ -53,10 +53,24 @@ export function BookCard({ book, index }: BookCardProps) {
                 )}
               </span>
 
+              {book.processingStatus === "processing" && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[9px] font-medium text-amber-600 dark:text-amber-400 animate-pulse">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  <span>{t("statusProcessing")}</span>
+                </span>
+              )}
+
               {isReadyForProcessing && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-medium text-emerald-600 dark:text-emerald-400">
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[9px] font-medium text-blue-600 dark:text-blue-400">
                   <Sparkles size={8} />
                   <span>{t("statusReady")}</span>
+                </span>
+              )}
+
+              {book.processingStatus === "completed" && isPdf && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-medium text-emerald-600 dark:text-emerald-400">
+                  <Sparkles size={8} />
+                  <span>{t("statusCompleted")}</span>
                 </span>
               )}
             </div>

@@ -630,6 +630,183 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /books/{bookId}/pages:
+    get:
+      operationId: getBookPages
+      tags: [books]
+      summary: Get all processed pages for a book
+      description: Returns list of pages with metadata, text content, and classification
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of processed book pages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookPagesListResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/pages/{pageNumber}:
+    get:
+      operationId: getBookPage
+      tags: [books]
+      summary: Get details and bounding boxes for a single page
+      description: Returns page text, coordinates, preview url, and classification
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pageNumber
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Page detail with coordinates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookPageDetail"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Page or book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/pages/{pageNumber}/preview:
+    get:
+      operationId: getBookPagePreview
+      tags: [books]
+      summary: Get rendered preview image for a page
+      description: Streams rendered PNG/WebP preview image
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pageNumber
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Preview image
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Preview image or book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/reprocess:
+    post:
+      operationId: reprocessBook
+      tags: [books]
+      summary: Reprocess book pages
+      description: Re-runs extraction, classification, preview generation, and OCR idempotently
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReprocessBookRequest"
+      responses:
+        "202":
+          description: Reprocessing job enqueued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProcessingJobStatus"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/processing/cancel:
+    post:
+      operationId: cancelBookProcessing
+      tags: [books]
+      summary: Cancel active processing job
+      description: Cancels an in-progress or queued processing job for a book
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book or active job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -841,11 +1018,37 @@ components:
           type: string
         pageNumber:
           type: integer
+        pageType:
+          type: string
+        rawText:
+          type: string
+        normalizedText:
+          type: string
         textContent:
           type: string
-        ocrConfidence:
+        textSource:
+          type: string
+        characterCount:
           type: integer
+        wordCount:
+          type: integer
+        ocrRequired:
+          type: boolean
+        ocrStatus:
+          type: string
+        ocrConfidence:
+          type: number
           nullable: true
+        qualityScore:
+          type: integer
+        width:
+          type: integer
+        height:
+          type: integer
+        rotation:
+          type: integer
+        previewUrl:
+          type: string
         isBlank:
           type: boolean
       required:
@@ -853,6 +1056,62 @@ components:
         - bookId
         - pageNumber
         - textContent
+
+    TextBlock:
+      type: object
+      properties:
+        text:
+          type: string
+        x:
+          type: number
+        y:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+        confidence:
+          type: number
+      required:
+        - text
+        - x
+        - y
+        - width
+        - height
+
+    BookPageDetail:
+      allOf:
+        - $ref: "#/components/schemas/BookPage"
+        - type: object
+          properties:
+            textBlocks:
+              type: array
+              items:
+                $ref: "#/components/schemas/TextBlock"
+
+    BookPagesListResponse:
+      type: object
+      properties:
+        bookId:
+          type: string
+        totalPages:
+          type: integer
+        pages:
+          type: array
+          items:
+            $ref: "#/components/schemas/BookPage"
+      required:
+        - bookId
+        - totalPages
+        - pages
+
+    ReprocessBookRequest:
+      type: object
+      properties:
+        forceOcr:
+          type: boolean
+        priority:
+          type: string
 
     ReadingProgress:
       type: object
@@ -1035,12 +1294,31 @@ components:
     ProcessingJobStatus:
       type: object
       properties:
+        id:
+          type: string
+        bookId:
+          type: string
+        jobType:
+          type: string
         status:
           type: string
         stage:
           type: string
         progress:
           type: integer
+        processedPages:
+          type: integer
+        totalPages:
+          type: integer
+        attempt:
+          type: integer
+        errorCode:
+          type: string
+        errorMessageSafe:
+          type: string
+        summary:
+          type: object
+          additionalProperties: true
       required:
         - status
         - stage
