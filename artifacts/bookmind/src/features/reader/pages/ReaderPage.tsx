@@ -1,90 +1,60 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams } from "wouter";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Sparkles, NotebookPen, X, FileText, Image as ImageIcon, AlertTriangle } from "lucide-react";
+import { Sparkles, NotebookPen, X, AlertTriangle } from "lucide-react";
 import {
   useGetBookDetails,
   getGetBookDetailsQueryKey,
   useGetBookPage,
   getGetBookPageQueryKey,
-  useUpdateReadingProgress,
   useCreateBookmark,
   useDeleteBookmark,
   useCreateNote,
   useUpdateNote,
   useDeleteNote,
-  type BookDetailResponse,
   type Bookmark,
   type Note,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { ReaderHeader } from "../components/ReaderHeader";
+
+// Modular reader hooks
+import { useReaderPreferences } from "../hooks/useReaderPreferences";
+import { useReaderNavigation } from "../hooks/useReaderNavigation";
+import { useReadingProgress } from "../hooks/useReadingProgress";
+import { usePagePrefetch } from "../hooks/usePagePrefetch";
+import { useReaderKeyboard } from "../hooks/useReaderKeyboard";
+import { useTouchGestures } from "../hooks/useTouchGestures";
+
+// Modular reader components
+import { ReaderShell } from "../components/ReaderShell";
+import { ReaderToolbar } from "../components/ReaderToolbar";
+import { ReaderPageView } from "../components/ReaderPageView";
+import { ReaderSpreadView } from "../components/ReaderSpreadView";
+import { ReaderContinuousView } from "../components/ReaderContinuousView";
+import { ReaderSettings } from "../components/ReaderSettings";
+import { PageNavigator } from "../components/PageNavigator";
 import { InsightPanel } from "../components/InsightPanel";
 import { NotePanel } from "@/features/notes/components/NotePanel";
 import NotFound from "@/pages/not-found";
 
-type ReaderTheme = "paper" | "sepia" | "night";
-
-interface SamplePageContent {
-  chapter: string;
-  title: string;
-  paragraphs: string[];
-}
-
-const PAGE_CONTENTS: Record<number, SamplePageContent> = {
-  48: {
-    chapter: "Chapter 01 · Seeing",
-    title: "Seeing comes before words.",
-    paragraphs: [
-      "The child looks and recognizes before it can speak. But there is also another sense in which seeing comes before words.",
-      "It is seeing which shapes our place in the world and determines what we notice.",
-    ],
-  },
-  49: {
-    chapter: "Chapter 01 · Seeing",
-    title: "The visible world.",
-    paragraphs: [
-      "Soon after we can see, we are aware that we can also be seen. The eye of the other combines with our own eye to make it fully credible that we are part of the visible world.",
-      "If we accept that we can see that hill over there, we propose that from that hill we can be seen. The reciprocal nature of vision is more fundamental than that of spoken dialogue.",
-    ],
-  },
-};
-
-function getPageContent(pageNumber: number): SamplePageContent {
-  if (PAGE_CONTENTS[pageNumber]) {
-    return PAGE_CONTENTS[pageNumber];
-  }
-  return {
-    chapter: `Chapter 01 · Reading`,
-    title: "The shape of an idea.",
-    paragraphs: [
-      "A book becomes useful when its ideas have somewhere to land. Reading is not only the act of moving through words; it is the moment a thought becomes part of your own way of seeing.",
-      "Return to this page whenever you want to follow the thread again.",
-    ],
-  };
-}
-
 export function ReaderPage() {
   const { bookId = "" } = useParams<{ bookId: string }>();
-  const { t } = useTranslation("reader");
+  const { t } = useTranslation(["reader", "common"]);
   const { user } = useAuth();
 
-  // Local theme
-  const [theme, setTheme] = useState<ReaderTheme>(() => {
-    try {
-      const val = localStorage.getItem("bookmind-theme");
-      return val ? JSON.parse(val) : "paper";
-    } catch {
-      return "paper";
-    }
-  });
+  // Reader Preferences (viewMode, layout, theme, fontFamily, fontSize, lineHeight, margin, zoom)
+  const { preferences, updatePreferences, resolvePageMode } = useReaderPreferences();
 
+  // UI state
   const [panel, setPanel] = useState<"none" | "insight" | "note">("none");
-  const [selected, setSelected] = useState(false);
-  const [viewMode, setViewMode] = useState<"text" | "original">("text");
+  const [selectedText, setSelectedText] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isNavigatorOpen, setIsNavigatorOpen] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // TanStack Query for book details
-  const { data: apiDetails, refetch } = useGetBookDetails(bookId, {
+  const { data: apiDetails, isLoading: isBookLoading, refetch } = useGetBookDetails(bookId, {
     query: {
       queryKey: getGetBookDetailsQueryKey(bookId),
       enabled: !!user && !!bookId,
@@ -92,114 +62,91 @@ export function ReaderPage() {
     },
   });
 
-  // Local state initialized with fallback
-  const [page, setPage] = useState<number>(() => {
-    try {
-      const savedPage = localStorage.getItem(`bookmind-page-${bookId}`);
-      if (savedPage) return Number(savedPage);
-    } catch {}
-    return 1; // default to page 1
+  const totalPages = apiDetails?.book?.totalPages || 1;
+  const initialPage = apiDetails?.progress?.currentPage || 1;
+
+  // Reader Navigation (clamping, URL replaceState, spread page calculation)
+  const {
+    currentPage,
+    spreadPages,
+    canGoPrev,
+    canGoNext,
+    goToPage,
+    nextPage,
+    prevPage,
+  } = useReaderNavigation({
+    totalPages,
+    initialPage,
+    layout: preferences.layout,
   });
 
-  // TanStack Query for individual processed page
-  const { data: pageData, isLoading: isPageLoading } = useGetBookPage(bookId, page, {
+  // Debounced Reading Progress persistence (800ms, Section 26 protected)
+  const { progressPercent } = useReadingProgress({
+    bookId,
+    currentPage,
+    totalPages,
+  });
+
+  // Page prefetching (adjacent JSON + preview images)
+  usePagePrefetch({
+    bookId,
+    currentPage,
+    totalPages,
+  });
+
+  // Query page data for current page
+  const { data: pageData, isLoading: isPageLoading } = useGetBookPage(bookId, currentPage, {
     query: {
-      queryKey: getGetBookPageQueryKey(bookId, page),
-      enabled: !!user && !!bookId && page > 0,
+      queryKey: getGetBookPageQueryKey(bookId, currentPage),
+      enabled: !!user && !!bookId && currentPage > 0,
       staleTime: 60_000,
     },
   });
 
-  // Local bookmarks & notes cache for instant optimistic responsiveness
+  // Keyboard navigation
+  useReaderKeyboard({
+    onNext: nextPage,
+    onPrev: prevPage,
+    onEscape: () => {
+      setIsSettingsOpen(false);
+      setIsNavigatorOpen(false);
+      setPanel("none");
+    },
+    enabled: !isSettingsOpen && !isNavigatorOpen,
+  });
+
+  // Touch gesture swipe navigation
+  useTouchGestures({
+    onSwipeLeft: nextPage,
+    onSwipeRight: prevPage,
+  });
+
+  // Local bookmarks & notes state
   const [localBookmarks, setLocalBookmarks] = useState<Bookmark[]>([]);
   const [localNotes, setLocalNotes] = useState<Note[]>([]);
 
+  useEffect(() => {
+    if (apiDetails) {
+      if (apiDetails.bookmarks) setLocalBookmarks(apiDetails.bookmarks);
+      if (apiDetails.notes) setLocalNotes(apiDetails.notes);
+    }
+  }, [apiDetails]);
+
   // Mutations
-  const updateProgressMutation = useUpdateReadingProgress();
   const createBookmarkMutation = useCreateBookmark();
   const deleteBookmarkMutation = useDeleteBookmark();
   const createNoteMutation = useCreateNote();
   const updateNoteMutation = useUpdateNote();
   const deleteNoteMutation = useDeleteNote();
 
-  // Hydrate from API when available
-  useEffect(() => {
-    if (apiDetails) {
-      if (apiDetails.progress?.currentPage) {
-        setPage(apiDetails.progress.currentPage);
-      }
-      if (apiDetails.bookmarks) {
-        setLocalBookmarks(apiDetails.bookmarks);
-      }
-      if (apiDetails.notes) {
-        setLocalNotes(apiDetails.notes);
-      }
-    }
-  }, [apiDetails]);
-
-  // Persist theme to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem("bookmind-theme", JSON.stringify(theme));
-    } catch {}
-  }, [theme]);
-
-  // Fallback book metadata if API has not responded yet
-  const bookTitle = apiDetails?.book?.title || "Ways of Seeing";
-  const totalPages = apiDetails?.book?.totalPages || 176;
-  const currentCategory = "Essays";
-
-  const percent = Math.round((page / totalPages) * 100);
-
-  // Active bookmark for current page
-  const currentBookmark = localBookmarks.find((bm) => bm.pageNumber === page);
+  // Active bookmark & note for current page
+  const currentBookmark = localBookmarks.find((bm) => bm.pageNumber === currentPage);
   const isBookmarked = !!currentBookmark;
+  const currentNote = localNotes.find((n) => n.pageNumber === currentPage);
 
-  // Active note for current page
-  const currentNote = localNotes.find((n) => n.pageNumber === page);
-
-  // Content for current page
-  const content = getPageContent(page);
-
-  // Extracted paragraphs from real BM-04 processing or fallback
-  const paragraphs = useMemo(() => {
-    if (pageData?.normalizedText || pageData?.textContent) {
-      const raw = pageData.normalizedText || pageData.textContent || "";
-      const lines = raw.split(/\r?\n\s*\r?\n|\r?\n/).map((p) => p.trim()).filter((p) => p.length > 0);
-      return lines.length > 0 ? lines : [raw];
-    }
-    return content.paragraphs;
-  }, [pageData, content.paragraphs]);
-
-  // Page navigation
-  const goToPage = async (nextPageNumber: number) => {
-    const nextPage = Math.max(1, Math.min(totalPages, nextPageNumber));
-    setPage(nextPage);
-    try {
-      localStorage.setItem(`bookmind-page-${bookId}`, String(nextPage));
-    } catch {}
-
-    // Send reading progress update to backend
-    if (user && bookId) {
-      try {
-        await updateProgressMutation.mutateAsync({
-          bookId,
-          data: {
-            currentPage: nextPage,
-            progressPercent: Math.round((nextPage / totalPages) * 100),
-            completed: nextPage >= totalPages,
-          },
-        });
-      } catch {
-        // Optimistic update remains active locally
-      }
-    }
-  };
-
-  // Toggle bookmark on current page
+  // Bookmark toggle handler
   const handleToggleBookmark = async () => {
     if (isBookmarked && currentBookmark) {
-      // Optimistic delete
       setLocalBookmarks((prev) => prev.filter((b) => b.id !== currentBookmark.id));
       if (user && bookId) {
         try {
@@ -212,13 +159,12 @@ export function ReaderPage() {
         }
       }
     } else {
-      // Optimistic create
       const tempId = `temp-${Date.now()}`;
       const newBm: Bookmark = {
         id: tempId,
         bookId,
-        pageNumber: page,
-        title: `Página ${page}`,
+        pageNumber: currentPage,
+        title: `Página ${currentPage}`,
         createdAt: new Date().toISOString(),
       };
       setLocalBookmarks((prev) => [...prev, newBm]);
@@ -226,14 +172,9 @@ export function ReaderPage() {
         try {
           const created = await createBookmarkMutation.mutateAsync({
             bookId,
-            data: {
-              pageNumber: page,
-              title: `Página ${page}`,
-            },
+            data: { pageNumber: currentPage, title: `Página ${currentPage}` },
           });
-          setLocalBookmarks((prev) =>
-            prev.map((b) => (b.id === tempId ? created : b)),
-          );
+          setLocalBookmarks((prev) => prev.map((b) => (b.id === tempId ? created : b)));
         } catch {
           refetch();
         }
@@ -241,21 +182,17 @@ export function ReaderPage() {
     }
   };
 
-  // Save note on current page
+  // Note save handler
   const handleSaveNote = async (text: string) => {
     if (!text.trim()) return;
 
     if (currentNote) {
-      // Update existing note
       const updatedNote: Note = {
         ...currentNote,
         content: text,
         updatedAt: new Date().toISOString(),
       };
-      setLocalNotes((prev) =>
-        prev.map((n) => (n.id === currentNote.id ? updatedNote : n)),
-      );
-
+      setLocalNotes((prev) => prev.map((n) => (n.id === currentNote.id ? updatedNote : n)));
       if (user && bookId) {
         try {
           await updateNoteMutation.mutateAsync({
@@ -268,32 +205,24 @@ export function ReaderPage() {
         }
       }
     } else {
-      // Create new note
       const tempId = `temp-${Date.now()}`;
       const newNote: Note = {
         id: tempId,
         bookId,
-        pageNumber: page,
+        pageNumber: currentPage,
         content: text,
         color: "amber",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       setLocalNotes((prev) => [...prev, newNote]);
-
       if (user && bookId) {
         try {
           const created = await createNoteMutation.mutateAsync({
             bookId,
-            data: {
-              pageNumber: page,
-              content: text,
-              color: "amber",
-            },
+            data: { pageNumber: currentPage, content: text, color: "amber" },
           });
-          setLocalNotes((prev) =>
-            prev.map((n) => (n.id === tempId ? created : n)),
-          );
+          setLocalNotes((prev) => prev.map((n) => (n.id === tempId ? created : n)));
         } catch {
           refetch();
         }
@@ -301,12 +230,11 @@ export function ReaderPage() {
     }
   };
 
-  // Delete note
+  // Note delete handler
   const handleDeleteNote = async () => {
     if (!currentNote) return;
     setLocalNotes((prev) => prev.filter((n) => n.id !== currentNote.id));
     setPanel("none");
-
     if (user && bookId) {
       try {
         await deleteNoteMutation.mutateAsync({
@@ -319,221 +247,179 @@ export function ReaderPage() {
     }
   };
 
-  const themeClasses =
-    theme === "night"
-      ? "bg-[#202928] text-[#E9E4D7]"
-      : theme === "sepia"
-      ? "bg-[#E7DAC3] text-[#4A3C2E]"
-      : "reading-paper text-foreground";
+  // Fullscreen toggle handler
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+      setIsFullscreen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFsChange);
+    return () => document.removeEventListener("fullscreenchange", handleFsChange);
+  }, []);
+
+  // Effective page mode for current page
+  const effectiveMode = resolvePageMode(pageData ?? undefined);
+
+  // Switch to original view mode
+  const handleSwitchToOriginal = useCallback(() => {
+    updatePreferences({ viewMode: "original" });
+  }, [updatePreferences]);
+
+  const bookTitle = apiDetails?.book?.title || t("bookTitleDefault", { defaultValue: "Libro" });
+
+  // 404 handler
+  if (!isBookLoading && !apiDetails?.book) {
+    return <NotFound />;
+  }
+
+  const isOverlayOpen = isSettingsOpen || isNavigatorOpen || panel !== "none";
 
   return (
-    <div className={`min-h-[calc(100vh-72px)] transition-colors duration-300 ${themeClasses}`}>
-      <ReaderHeader
-        title={bookTitle}
-        chapterTitle={content.chapter}
+    <ReaderShell
+      theme={preferences.theme}
+      showControls={showControls}
+      onShowControlsChange={setShowControls}
+      isOverlayOpen={isOverlayOpen}
+      className="select-none"
+    >
+      {/* Top and Bottom Toolbars */}
+      <ReaderToolbar
+        bookTitle={bookTitle}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        progressPercent={progressPercent}
+        preferences={preferences}
+        onUpdatePreferences={updatePreferences}
         isBookmarked={isBookmarked}
         onToggleBookmark={handleToggleBookmark}
         activePanel={panel}
         onToggleNote={() => setPanel(panel === "note" ? "none" : "note")}
-        theme={theme}
-        onToggleTheme={() => setTheme(theme === "night" ? "paper" : "night")}
+        onToggleInsight={() => setPanel(panel === "insight" ? "none" : "insight")}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenNavigator={() => setIsNavigatorOpen(true)}
+        onPrevPage={prevPage}
+        onNextPage={nextPage}
+        canPrevPage={canGoPrev}
+        canNextPage={canGoNext}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={toggleFullscreen}
+        showControls={showControls}
+        effectiveMode={effectiveMode}
       />
 
-      <div className="mx-auto grid max-w-[1400px] gap-8 px-5 py-8 sm:px-8 lg:grid-cols-[1fr_320px]">
-        {/* Main Reading Surface */}
-        <main>
-          <div className="mx-auto max-w-2xl">
-            <div className="mb-8 flex items-center justify-between text-muted-foreground">
-              <span className="mono text-[10px] uppercase tracking-[0.18em]">
-                {currentCategory} · {percent}% {t("percentCompleted", { percent })}
-              </span>
-
-              <div className="flex items-center gap-2">
-                {apiDetails?.book?.sourceType === "pdf" && (
-                  <div className="flex items-center rounded-lg border border-border/80 bg-secondary/50 p-0.5 text-xs">
-                    <button
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition text-[11px] ${
-                        viewMode === "text"
-                          ? "bg-background shadow-xs font-medium text-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                      onClick={() => setViewMode("text")}
-                    >
-                      <FileText size={11} />
-                      <span>{t("viewText")}</span>
-                    </button>
-                    <button
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition text-[11px] ${
-                        viewMode === "original"
-                          ? "bg-background shadow-xs font-medium text-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                      onClick={() => setViewMode("original")}
-                    >
-                      <ImageIcon size={11} />
-                      <span>{t("viewOriginal")}</span>
-                    </button>
-                  </div>
-                )}
-
-                <button
-                  className="rounded-full p-2 transition hover:bg-secondary hover-elevate"
-                  onClick={() => setPanel(panel === "insight" ? "none" : "insight")}
-                  aria-label={t("explainWithBookMind")}
-                  title={t("explainWithBookMind")}
-                >
-                  <Sparkles size={17} />
-                </button>
-              </div>
+      {/* Main Reading Surface Container */}
+      <main
+        className="flex-1 w-full pt-16 pb-16 min-h-screen flex items-center justify-center relative select-text"
+        data-page-background="true"
+      >
+        {/* Book processing in progress screen */}
+        {apiDetails?.book?.processingStatus === "processing" && !pageData?.textContent ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center animate-rise-in px-4">
+            <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+              <Sparkles className="h-8 w-8 text-primary animate-pulse" />
             </div>
-
-            {/* Preparation / In-Progress Screen */}
-            {apiDetails?.book?.processingStatus === "processing" && !pageData?.textContent ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center animate-rise-in">
-                <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-                  <Sparkles className="h-8 w-8 text-primary animate-pulse" />
-                </div>
-                <h2 className="serif text-2xl font-medium mb-2">{t("preparingBook")}</h2>
-                <p className="max-w-md text-sm text-muted-foreground mb-6">{t("preparingBookDesc")}</p>
-                <div className="h-1.5 w-64 overflow-hidden rounded-full bg-secondary">
-                  <div className="h-full rounded-full bg-primary animate-pulse" style={{ width: "65%" }} />
-                </div>
-              </div>
-            ) : viewMode === "original" ? (
-              /* Original Page Preview */
-              <div className="flex justify-center my-6 animate-rise-in">
-                <img
-                  src={`/api/books/${bookId}/pages/${page}/preview`}
-                  alt={`Página ${page}`}
-                  className="max-h-[75vh] w-auto rounded-lg shadow-lg border border-border object-contain"
-                />
-              </div>
-            ) : (
-              /* Clean Reading Text Surface */
-              <article className="serif text-[21px] leading-[1.72] sm:text-[24px]">
-                <div className="mb-6 flex items-center justify-between">
-                  <p className="font-sans text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
-                    {pageData?.pageType ? `${pageData.pageType.toUpperCase()} · PÁGINA ${page}` : content.chapter}
-                  </p>
-
-                  <div className="flex items-center gap-1.5">
-                    {pageData?.ocrRequired && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[9px] font-medium text-amber-600 dark:text-amber-400">
-                        <span>OCR</span>
-                      </span>
-                    )}
-                    {pageData?.ocrStatus === "low_confidence" && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[9px] font-medium text-red-600 dark:text-red-400">
-                        <AlertTriangle size={10} />
-                        <span>{t("lowConfidenceNotice")}</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {!pageData && (
-                  <h1 className="mb-10 max-w-xl text-5xl leading-[0.98] tracking-[-0.045em] sm:text-6xl font-medium">
-                    {content.title}
-                  </h1>
-                )}
-
-                {paragraphs.length === 0 ? (
-                  <p className="italic text-muted-foreground my-8">{t("emptyPageNotice")}</p>
-                ) : (
-                  paragraphs.map((para, index) => (
-                    <p key={index} className="mb-8">
-                      {index === 0 && !pageData ? (
-                        <>
-                          <span
-                            className={`cursor-pointer transition-colors ${
-                              selected
-                                ? "rounded bg-[#D3A16E]/35 underline decoration-[#C7885D] decoration-2 underline-offset-4"
-                                : "hover:bg-[#D3A16E]/15"
-                            }`}
-                            onClick={() => setSelected(!selected)}
-                          >
-                            {para.slice(0, 67)}
-                          </span>
-                          {para.slice(67)}
-                        </>
-                      ) : (
-                        para
-                      )}
-                    </p>
-                  ))
-                )}
-              </article>
-            )}
-
-            {/* Pagination Controls */}
-            <div className="mt-14 flex items-center justify-between border-t border-border/70 pt-6">
-              <button
-                className="flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
-                onClick={() => goToPage(page - 1)}
-                disabled={page <= 1}
-              >
-                <ChevronLeft size={18} /> {t("previousPage")}
-              </button>
-
-              <span className="mono text-[10px] tracking-widest text-muted-foreground">
-                {t("pageIndicator", { current: page, total: totalPages })}
-              </span>
-
-              <button
-                className="flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
-                onClick={() => goToPage(page + 1)}
-                disabled={page >= totalPages}
-              >
-                {t("nextPage")} <ChevronRight size={18} />
-              </button>
+            <h2 className="font-serif text-2xl font-medium mb-2">
+              {t("preparingBook", { defaultValue: "Preparando libro..." })}
+            </h2>
+            <p className="max-w-md text-sm text-muted-foreground mb-6">
+              {t("preparingBookDesc", {
+                defaultValue: "BookMind está procesando y extrayendo las páginas de este libro.",
+              })}
+            </p>
+            <div className="h-1.5 w-64 overflow-hidden rounded-full bg-secondary">
+              <div className="h-full rounded-full bg-primary animate-pulse" style={{ width: "65%" }} />
             </div>
           </div>
-        </main>
+        ) : (
+          <div className="w-full h-full flex justify-center items-center">
+            {/* 1. Continuous scroll layout */}
+            {preferences.layout === "continuous" && (
+              <ReaderContinuousView
+                bookId={bookId}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                preferences={preferences}
+                resolvePageMode={resolvePageMode}
+                onPageVisible={(visiblePage) => goToPage(visiblePage)}
+                onSwitchToOriginal={handleSwitchToOriginal}
+              />
+            )}
 
-        {/* Sidebar Panel (Note or Insight) */}
+            {/* 2. Double spread layout */}
+            {preferences.layout === "double" && (
+              <ReaderSpreadView
+                bookId={bookId}
+                leftPageNumber={spreadPages.left}
+                rightPageNumber={spreadPages.right}
+                leftPageData={pageData}
+                preferences={preferences}
+                resolvePageMode={resolvePageMode}
+                onSwitchToOriginal={handleSwitchToOriginal}
+              />
+            )}
+
+            {/* 3. Single page layout */}
+            {preferences.layout === "single" && (
+              <div className="w-full max-w-4xl px-4 py-2">
+                <ReaderPageView
+                  bookId={bookId}
+                  pageNumber={currentPage}
+                  pageData={pageData}
+                  effectiveMode={effectiveMode}
+                  preferences={preferences}
+                  onSwitchToOriginal={handleSwitchToOriginal}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Side Panels (Notes or AI Insight) */}
         {panel !== "none" && (
-          <aside className="animate-rise-in rounded-3xl border border-border bg-card/90 p-6 shadow-[var(--shadow-soft)] backdrop-blur-md lg:mt-12 h-fit">
+          <aside className="fixed right-4 bottom-16 top-16 z-30 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card/95 p-5 shadow-2xl backdrop-blur-md overflow-y-auto animate-in slide-in-from-right duration-200">
             {panel === "note" ? (
               <NotePanel
                 initialContent={currentNote?.content || ""}
-                pageNumber={page}
+                pageNumber={currentPage}
                 onSave={handleSaveNote}
                 onDelete={currentNote ? handleDeleteNote : undefined}
                 onClose={() => setPanel("none")}
               />
             ) : (
               <InsightPanel
-                selected={selected}
+                selected={selectedText}
                 onClose={() => setPanel("none")}
               />
             )}
           </aside>
         )}
-      </div>
+      </main>
 
-      {/* Floating Selection Action Bar */}
-      {selected && panel === "none" && (
-        <div className="fixed bottom-8 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-card p-1.5 shadow-xl backdrop-blur-md animate-rise-in">
-          <button
-            className="flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-medium transition hover:bg-secondary"
-            onClick={() => setPanel("note")}
-          >
-            <NotebookPen size={14} className="text-accent" /> {t("openNotes")}
-          </button>
-          <button
-            className="flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-medium transition hover:bg-secondary"
-            onClick={() => setPanel("insight")}
-          >
-            <Sparkles size={14} className="text-accent" /> {t("explainWithAi")}
-          </button>
-          <button
-            className="flex items-center gap-1.5 rounded-full px-3 py-2 text-xs text-muted-foreground transition hover:bg-secondary hover:text-foreground"
-            onClick={() => setSelected(false)}
-          >
-            <X size={14} /> {t("clearSelection")}
-          </button>
-        </div>
-      )}
-    </div>
+      {/* Settings Side Drawer */}
+      <ReaderSettings
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        preferences={preferences}
+        onUpdatePreferences={updatePreferences}
+      />
+
+      {/* Direct Page Navigator Scrubber Modal */}
+      <PageNavigator
+        isOpen={isNavigatorOpen}
+        onClose={() => setIsNavigatorOpen(false)}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onGoToPage={goToPage}
+      />
+    </ReaderShell>
   );
 }

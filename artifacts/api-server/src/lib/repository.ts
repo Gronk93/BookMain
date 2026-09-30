@@ -205,6 +205,15 @@ export async function createUser(data: {
       theme: "system",
       readingMode: "standard",
       fontSize: "medium",
+      readerViewMode: "auto",
+      readerLayout: "single",
+      readerTheme: "paper",
+      readerFontFamily: "serif",
+      readerFontSize: 18,
+      readerLineHeight: "normal",
+      readerMargin: "normal",
+      readerPageAnimation: "page",
+      readerZoom: 100,
       createdAt: now,
       updatedAt: now,
     });
@@ -217,6 +226,15 @@ export async function createUser(data: {
       theme: "system",
       readingMode: "standard",
       fontSize: "medium",
+      readerViewMode: "auto",
+      readerLayout: "single",
+      readerTheme: "paper",
+      readerFontFamily: "serif",
+      readerFontSize: 18,
+      readerLineHeight: "normal",
+      readerMargin: "normal",
+      readerPageAnimation: "page",
+      readerZoom: 100,
       createdAt: now,
       updatedAt: now,
     });
@@ -245,6 +263,15 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
     theme: "system",
     readingMode: "standard",
     fontSize: "medium",
+    readerViewMode: "auto",
+    readerLayout: "single",
+    readerTheme: "paper",
+    readerFontFamily: "serif",
+    readerFontSize: 18,
+    readerLineHeight: "normal",
+    readerMargin: "normal",
+    readerPageAnimation: "page",
+    readerZoom: 100,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -254,7 +281,7 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
 
 export async function updateUserPreferences(
   userId: string,
-  updates: Partial<Pick<UserPreferences, "language" | "theme" | "readingMode" | "fontSize">>,
+  updates: Partial<Omit<UserPreferences, "id" | "userId" | "createdAt" | "updatedAt">>,
 ): Promise<UserPreferences> {
   const db = getDb();
   const now = new Date();
@@ -1255,13 +1282,15 @@ export async function updateReadingProgress(
     const b = bookRes[0];
     const safePage = Math.max(1, Math.min(b.totalPages, data.currentPage));
     const percent = data.progressPercent ?? Math.round((safePage / (b.totalPages || 1)) * 100);
-    const completed = data.completed ?? safePage >= b.totalPages;
 
     const existing = await db
       .select()
       .from(readingProgressTable)
       .where(and(eq(readingProgressTable.userId, userId), eq(readingProgressTable.bookId, bookId)))
       .limit(1);
+
+    // Section 26: do NOT automatically mark completed on last page
+    const completed = data.completed !== undefined ? data.completed : (existing[0]?.completed ?? false);
 
     if (existing[0]) {
       const updated: ReadingProgress = {
@@ -1307,12 +1336,12 @@ export async function updateReadingProgress(
 
   const safePage = Math.max(1, Math.min(b.totalPages, data.currentPage));
   const percent = data.progressPercent ?? Math.round((safePage / (b.totalPages || 1)) * 100);
-  const completed = data.completed ?? safePage >= b.totalPages;
+  let progress = memoryStore.progress.get(`${userId}:${bookId}`);
+  const completed = data.completed !== undefined ? data.completed : (progress?.completed ?? false);
 
   b.currentPage = safePage;
   b.updatedAt = now;
 
-  let progress = memoryStore.progress.get(`${userId}:${bookId}`);
   if (progress) {
     progress.currentPage = safePage;
     progress.progressPercent = percent;

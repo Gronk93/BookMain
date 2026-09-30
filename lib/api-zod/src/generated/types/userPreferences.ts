@@ -7,6 +7,13 @@
  */
 import type { UserPreferencesFontSize } from './userPreferencesFontSize';
 import type { UserPreferencesLanguage } from './userPreferencesLanguage';
+import type { UserPreferencesReaderFontFamily } from './userPreferencesReaderFontFamily';
+import type { UserPreferencesReaderLayout } from './userPreferencesReaderLayout';
+import type { UserPreferencesReaderLineHeight } from './userPreferencesReaderLineHeight';
+import type { UserPreferencesReaderMargin } from './userPreferencesReaderMargin';
+import type { UserPreferencesReaderPageAnimation } from './userPreferencesReaderPageAnimation';
+import type { UserPreferencesReaderTheme } from './userPreferencesReaderTheme';
+import type { UserPreferencesReaderViewMode } from './userPreferencesReaderViewMode';
 import type { UserPreferencesReadingMode } from './userPreferencesReadingMode';
 import type { UserPreferencesTheme } from './userPreferencesTheme';
 
@@ -17,5 +24,14 @@ export interface UserPreferences {
   theme: UserPreferencesTheme;
   readingMode?: UserPreferencesReadingMode;
   fontSize?: UserPreferencesFontSize;
+  readerViewMode?: UserPreferencesReaderViewMode;
+  readerLayout?: UserPreferencesReaderLayout;
+  readerTheme?: UserPreferencesReaderTheme;
+  readerFontFamily?: UserPreferencesReaderFontFamily;
+  readerFontSize?: number;
+  readerLineHeight?: UserPreferencesReaderLineHeight;
+  readerMargin?: UserPreferencesReaderMargin;
+  readerPageAnimation?: UserPreferencesReaderPageAnimation;
+  readerZoom?: number;
   updatedAt?: string;
 }

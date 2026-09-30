@@ -72,6 +72,68 @@ export const UserPreferencesFontSize = {
   'x-large': 'x-large',
 } as const;
 
+export type UserPreferencesReaderViewMode = typeof UserPreferencesReaderViewMode[keyof typeof UserPreferencesReaderViewMode];
+
+
+export const UserPreferencesReaderViewMode = {
+  auto: 'auto',
+  reading: 'reading',
+  original: 'original',
+} as const;
+
+export type UserPreferencesReaderLayout = typeof UserPreferencesReaderLayout[keyof typeof UserPreferencesReaderLayout];
+
+
+export const UserPreferencesReaderLayout = {
+  single: 'single',
+  double: 'double',
+  continuous: 'continuous',
+} as const;
+
+export type UserPreferencesReaderTheme = typeof UserPreferencesReaderTheme[keyof typeof UserPreferencesReaderTheme];
+
+
+export const UserPreferencesReaderTheme = {
+  paper: 'paper',
+  sepia: 'sepia',
+  night: 'night',
+} as const;
+
+export type UserPreferencesReaderFontFamily = typeof UserPreferencesReaderFontFamily[keyof typeof UserPreferencesReaderFontFamily];
+
+
+export const UserPreferencesReaderFontFamily = {
+  serif: 'serif',
+  sans: 'sans',
+} as const;
+
+export type UserPreferencesReaderLineHeight = typeof UserPreferencesReaderLineHeight[keyof typeof UserPreferencesReaderLineHeight];
+
+
+export const UserPreferencesReaderLineHeight = {
+  compact: 'compact',
+  normal: 'normal',
+  relaxed: 'relaxed',
+} as const;
+
+export type UserPreferencesReaderMargin = typeof UserPreferencesReaderMargin[keyof typeof UserPreferencesReaderMargin];
+
+
+export const UserPreferencesReaderMargin = {
+  narrow: 'narrow',
+  normal: 'normal',
+  wide: 'wide',
+} as const;
+
+export type UserPreferencesReaderPageAnimation = typeof UserPreferencesReaderPageAnimation[keyof typeof UserPreferencesReaderPageAnimation];
+
+
+export const UserPreferencesReaderPageAnimation = {
+  page: 'page',
+  slide: 'slide',
+  none: 'none',
+} as const;
+
 export interface UserPreferences {
   id: string;
   userId: string;
@@ -79,6 +141,15 @@ export interface UserPreferences {
   theme: UserPreferencesTheme;
   readingMode?: UserPreferencesReadingMode;
   fontSize?: UserPreferencesFontSize;
+  readerViewMode?: UserPreferencesReaderViewMode;
+  readerLayout?: UserPreferencesReaderLayout;
+  readerTheme?: UserPreferencesReaderTheme;
+  readerFontFamily?: UserPreferencesReaderFontFamily;
+  readerFontSize?: number;
+  readerLineHeight?: UserPreferencesReaderLineHeight;
+  readerMargin?: UserPreferencesReaderMargin;
+  readerPageAnimation?: UserPreferencesReaderPageAnimation;
+  readerZoom?: number;
   updatedAt?: string;
 }
 
@@ -118,11 +189,82 @@ export const UpdatePreferencesRequestFontSize = {
   'x-large': 'x-large',
 } as const;
 
+export type UpdatePreferencesRequestReaderViewMode = typeof UpdatePreferencesRequestReaderViewMode[keyof typeof UpdatePreferencesRequestReaderViewMode];
+
+
+export const UpdatePreferencesRequestReaderViewMode = {
+  auto: 'auto',
+  reading: 'reading',
+  original: 'original',
+} as const;
+
+export type UpdatePreferencesRequestReaderLayout = typeof UpdatePreferencesRequestReaderLayout[keyof typeof UpdatePreferencesRequestReaderLayout];
+
+
+export const UpdatePreferencesRequestReaderLayout = {
+  single: 'single',
+  double: 'double',
+  continuous: 'continuous',
+} as const;
+
+export type UpdatePreferencesRequestReaderTheme = typeof UpdatePreferencesRequestReaderTheme[keyof typeof UpdatePreferencesRequestReaderTheme];
+
+
+export const UpdatePreferencesRequestReaderTheme = {
+  paper: 'paper',
+  sepia: 'sepia',
+  night: 'night',
+} as const;
+
+export type UpdatePreferencesRequestReaderFontFamily = typeof UpdatePreferencesRequestReaderFontFamily[keyof typeof UpdatePreferencesRequestReaderFontFamily];
+
+
+export const UpdatePreferencesRequestReaderFontFamily = {
+  serif: 'serif',
+  sans: 'sans',
+} as const;
+
+export type UpdatePreferencesRequestReaderLineHeight = typeof UpdatePreferencesRequestReaderLineHeight[keyof typeof UpdatePreferencesRequestReaderLineHeight];
+
+
+export const UpdatePreferencesRequestReaderLineHeight = {
+  compact: 'compact',
+  normal: 'normal',
+  relaxed: 'relaxed',
+} as const;
+
+export type UpdatePreferencesRequestReaderMargin = typeof UpdatePreferencesRequestReaderMargin[keyof typeof UpdatePreferencesRequestReaderMargin];
+
+
+export const UpdatePreferencesRequestReaderMargin = {
+  narrow: 'narrow',
+  normal: 'normal',
+  wide: 'wide',
+} as const;
+
+export type UpdatePreferencesRequestReaderPageAnimation = typeof UpdatePreferencesRequestReaderPageAnimation[keyof typeof UpdatePreferencesRequestReaderPageAnimation];
+
+
+export const UpdatePreferencesRequestReaderPageAnimation = {
+  page: 'page',
+  slide: 'slide',
+  none: 'none',
+} as const;
+
 export interface UpdatePreferencesRequest {
   language?: UpdatePreferencesRequestLanguage;
   theme?: UpdatePreferencesRequestTheme;
   readingMode?: UpdatePreferencesRequestReadingMode;
   fontSize?: UpdatePreferencesRequestFontSize;
+  readerViewMode?: UpdatePreferencesRequestReaderViewMode;
+  readerLayout?: UpdatePreferencesRequestReaderLayout;
+  readerTheme?: UpdatePreferencesRequestReaderTheme;
+  readerFontFamily?: UpdatePreferencesRequestReaderFontFamily;
+  readerFontSize?: number;
+  readerLineHeight?: UpdatePreferencesRequestReaderLineHeight;
+  readerMargin?: UpdatePreferencesRequestReaderMargin;
+  readerPageAnimation?: UpdatePreferencesRequestReaderPageAnimation;
+  readerZoom?: number;
 }
 
 export interface AuthResponse {

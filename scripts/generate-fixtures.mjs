@@ -94,12 +94,22 @@ async function generate() {
   const bytesHybrid = await docHybrid.save();
   await fsp.writeFile(path.join(fixturesDir, "hybrid-3-pages.pdf"), bytesHybrid);
 
-  // 9. blank-page.pdf (empty page, no text and no images)
-  const docBlank = await PDFDocument.create();
-  docBlank.setTitle("Documento con Pagina en Blanco");
-  docBlank.addPage([500, 700]);
-  const bytesBlank = await docBlank.save();
-  await fsp.writeFile(path.join(fixturesDir, "blank-page.pdf"), bytesBlank);
+  // 10. reader-100-pages.pdf (100-page book for deep navigation & pagination tests)
+  const doc100 = await PDFDocument.create();
+  doc100.setTitle("Cien Paginas de Conocimiento");
+  doc100.setAuthor("BookMind Reader Test Suite");
+  for (let i = 1; i <= 100; i++) {
+    const p = doc100.addPage([500, 700]);
+    p.drawText(`Capitulo ${i}: Exploracion de la Pagina ${i}`, { x: 50, y: 640, size: 14 });
+    p.drawText(
+      `Esta es la pagina numero ${i} del libro de prueba de 100 paginas disenado para ` +
+        `verificar la navegacion profunda, restauracion de progreso, doble pagina y scroll continuo en BookMind. ` +
+        `El lector debe ser capaz de navegar a la pagina 48 de manera inmediata y preservar el progreso.`,
+      { x: 50, y: 590, size: 10, maxWidth: 400, lineHeight: 14 },
+    );
+  }
+  const bytes100 = await doc100.save();
+  await fsp.writeFile(path.join(fixturesDir, "reader-100-pages.pdf"), bytes100);
 
   console.log("All PDF fixtures generated successfully in scripts/fixtures/");
 }

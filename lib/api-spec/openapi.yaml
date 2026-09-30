@@ -932,6 +932,31 @@ components:
         fontSize:
           type: string
           enum: [small, medium, large, x-large]
+        readerViewMode:
+          type: string
+          enum: [auto, reading, original]
+        readerLayout:
+          type: string
+          enum: [single, double, continuous]
+        readerTheme:
+          type: string
+          enum: [paper, sepia, night]
+        readerFontFamily:
+          type: string
+          enum: [serif, sans]
+        readerFontSize:
+          type: integer
+        readerLineHeight:
+          type: string
+          enum: [compact, normal, relaxed]
+        readerMargin:
+          type: string
+          enum: [narrow, normal, wide]
+        readerPageAnimation:
+          type: string
+          enum: [page, slide, none]
+        readerZoom:
+          type: integer
         updatedAt:
           type: string
       required:
@@ -955,6 +980,31 @@ components:
         fontSize:
           type: string
           enum: [small, medium, large, x-large]
+        readerViewMode:
+          type: string
+          enum: [auto, reading, original]
+        readerLayout:
+          type: string
+          enum: [single, double, continuous]
+        readerTheme:
+          type: string
+          enum: [paper, sepia, night]
+        readerFontFamily:
+          type: string
+          enum: [serif, sans]
+        readerFontSize:
+          type: integer
+        readerLineHeight:
+          type: string
+          enum: [compact, normal, relaxed]
+        readerMargin:
+          type: string
+          enum: [narrow, normal, wide]
+        readerPageAnimation:
+          type: string
+          enum: [page, slide, none]
+        readerZoom:
+          type: integer
 
     AuthResponse:
       type: object

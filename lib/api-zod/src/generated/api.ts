@@ -59,6 +59,15 @@ export const RegisterUserResponse = zod.object({
   "theme": zod.enum(['light', 'dark', 'system']),
   "readingMode": zod.enum(['standard', 'study', 'speed']).optional(),
   "fontSize": zod.enum(['small', 'medium', 'large', 'x-large']).optional(),
+  "readerViewMode": zod.enum(['auto', 'reading', 'original']).optional(),
+  "readerLayout": zod.enum(['single', 'double', 'continuous']).optional(),
+  "readerTheme": zod.enum(['paper', 'sepia', 'night']).optional(),
+  "readerFontFamily": zod.enum(['serif', 'sans']).optional(),
+  "readerFontSize": zod.number().int().optional(),
+  "readerLineHeight": zod.enum(['compact', 'normal', 'relaxed']).optional(),
+  "readerMargin": zod.enum(['narrow', 'normal', 'wide']).optional(),
+  "readerPageAnimation": zod.enum(['page', 'slide', 'none']).optional(),
+  "readerZoom": zod.number().int().optional(),
   "updatedAt": zod.string().optional()
 }).optional()
 })
@@ -88,6 +97,15 @@ export const LoginUserResponse = zod.object({
   "theme": zod.enum(['light', 'dark', 'system']),
   "readingMode": zod.enum(['standard', 'study', 'speed']).optional(),
   "fontSize": zod.enum(['small', 'medium', 'large', 'x-large']).optional(),
+  "readerViewMode": zod.enum(['auto', 'reading', 'original']).optional(),
+  "readerLayout": zod.enum(['single', 'double', 'continuous']).optional(),
+  "readerTheme": zod.enum(['paper', 'sepia', 'night']).optional(),
+  "readerFontFamily": zod.enum(['serif', 'sans']).optional(),
+  "readerFontSize": zod.number().int().optional(),
+  "readerLineHeight": zod.enum(['compact', 'normal', 'relaxed']).optional(),
+  "readerMargin": zod.enum(['narrow', 'normal', 'wide']).optional(),
+  "readerPageAnimation": zod.enum(['page', 'slide', 'none']).optional(),
+  "readerZoom": zod.number().int().optional(),
   "updatedAt": zod.string().optional()
 }).optional()
 })
@@ -121,6 +139,15 @@ export const GetCurrentUserResponse = zod.object({
   "theme": zod.enum(['light', 'dark', 'system']),
   "readingMode": zod.enum(['standard', 'study', 'speed']).optional(),
   "fontSize": zod.enum(['small', 'medium', 'large', 'x-large']).optional(),
+  "readerViewMode": zod.enum(['auto', 'reading', 'original']).optional(),
+  "readerLayout": zod.enum(['single', 'double', 'continuous']).optional(),
+  "readerTheme": zod.enum(['paper', 'sepia', 'night']).optional(),
+  "readerFontFamily": zod.enum(['serif', 'sans']).optional(),
+  "readerFontSize": zod.number().int().optional(),
+  "readerLineHeight": zod.enum(['compact', 'normal', 'relaxed']).optional(),
+  "readerMargin": zod.enum(['narrow', 'normal', 'wide']).optional(),
+  "readerPageAnimation": zod.enum(['page', 'slide', 'none']).optional(),
+  "readerZoom": zod.number().int().optional(),
   "updatedAt": zod.string().optional()
 })
 })
@@ -134,7 +161,16 @@ export const UpdateUserPreferencesBody = zod.object({
   "language": zod.enum(['es-MX', 'en-US']).optional(),
   "theme": zod.enum(['light', 'dark', 'system']).optional(),
   "readingMode": zod.enum(['standard', 'study', 'speed']).optional(),
-  "fontSize": zod.enum(['small', 'medium', 'large', 'x-large']).optional()
+  "fontSize": zod.enum(['small', 'medium', 'large', 'x-large']).optional(),
+  "readerViewMode": zod.enum(['auto', 'reading', 'original']).optional(),
+  "readerLayout": zod.enum(['single', 'double', 'continuous']).optional(),
+  "readerTheme": zod.enum(['paper', 'sepia', 'night']).optional(),
+  "readerFontFamily": zod.enum(['serif', 'sans']).optional(),
+  "readerFontSize": zod.number().int().optional(),
+  "readerLineHeight": zod.enum(['compact', 'normal', 'relaxed']).optional(),
+  "readerMargin": zod.enum(['narrow', 'normal', 'wide']).optional(),
+  "readerPageAnimation": zod.enum(['page', 'slide', 'none']).optional(),
+  "readerZoom": zod.number().int().optional()
 })
 
 export const UpdateUserPreferencesResponse = zod.object({
@@ -144,6 +180,15 @@ export const UpdateUserPreferencesResponse = zod.object({
   "theme": zod.enum(['light', 'dark', 'system']),
   "readingMode": zod.enum(['standard', 'study', 'speed']).optional(),
   "fontSize": zod.enum(['small', 'medium', 'large', 'x-large']).optional(),
+  "readerViewMode": zod.enum(['auto', 'reading', 'original']).optional(),
+  "readerLayout": zod.enum(['single', 'double', 'continuous']).optional(),
+  "readerTheme": zod.enum(['paper', 'sepia', 'night']).optional(),
+  "readerFontFamily": zod.enum(['serif', 'sans']).optional(),
+  "readerFontSize": zod.number().int().optional(),
+  "readerLineHeight": zod.enum(['compact', 'normal', 'relaxed']).optional(),
+  "readerMargin": zod.enum(['narrow', 'normal', 'wide']).optional(),
+  "readerPageAnimation": zod.enum(['page', 'slide', 'none']).optional(),
+  "readerZoom": zod.number().int().optional(),
   "updatedAt": zod.string().optional()
 })
 

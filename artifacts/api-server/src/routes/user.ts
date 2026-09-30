@@ -23,6 +23,15 @@ router.get("/me", requireAuth, async (req, res) => {
         theme: preferences.theme,
         readingMode: preferences.readingMode,
         fontSize: preferences.fontSize,
+        readerViewMode: preferences.readerViewMode,
+        readerLayout: preferences.readerLayout,
+        readerTheme: preferences.readerTheme,
+        readerFontFamily: preferences.readerFontFamily,
+        readerFontSize: preferences.readerFontSize,
+        readerLineHeight: preferences.readerLineHeight,
+        readerMargin: preferences.readerMargin,
+        readerPageAnimation: preferences.readerPageAnimation,
+        readerZoom: preferences.readerZoom,
         updatedAt: preferences.updatedAt.toISOString(),
       },
     });
@@ -37,13 +46,36 @@ router.get("/me", requireAuth, async (req, res) => {
 router.patch("/me/preferences", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    const { language, theme, readingMode, fontSize } = req.body || {};
+    const {
+      language,
+      theme,
+      readingMode,
+      fontSize,
+      readerViewMode,
+      readerLayout,
+      readerTheme,
+      readerFontFamily,
+      readerFontSize,
+      readerLineHeight,
+      readerMargin,
+      readerPageAnimation,
+      readerZoom,
+    } = req.body || {};
 
     const updated = await updateUserPreferences(user.id, {
-      ...(language ? { language } : {}),
-      ...(theme ? { theme } : {}),
-      ...(readingMode ? { readingMode } : {}),
-      ...(fontSize ? { fontSize } : {}),
+      ...(language !== undefined ? { language } : {}),
+      ...(theme !== undefined ? { theme } : {}),
+      ...(readingMode !== undefined ? { readingMode } : {}),
+      ...(fontSize !== undefined ? { fontSize } : {}),
+      ...(readerViewMode !== undefined ? { readerViewMode } : {}),
+      ...(readerLayout !== undefined ? { readerLayout } : {}),
+      ...(readerTheme !== undefined ? { readerTheme } : {}),
+      ...(readerFontFamily !== undefined ? { readerFontFamily } : {}),
+      ...(readerFontSize !== undefined ? { readerFontSize } : {}),
+      ...(readerLineHeight !== undefined ? { readerLineHeight } : {}),
+      ...(readerMargin !== undefined ? { readerMargin } : {}),
+      ...(readerPageAnimation !== undefined ? { readerPageAnimation } : {}),
+      ...(readerZoom !== undefined ? { readerZoom } : {}),
     });
 
     res.json({
@@ -53,6 +85,15 @@ router.patch("/me/preferences", requireAuth, async (req, res) => {
       theme: updated.theme,
       readingMode: updated.readingMode,
       fontSize: updated.fontSize,
+      readerViewMode: updated.readerViewMode,
+      readerLayout: updated.readerLayout,
+      readerTheme: updated.readerTheme,
+      readerFontFamily: updated.readerFontFamily,
+      readerFontSize: updated.readerFontSize,
+      readerLineHeight: updated.readerLineHeight,
+      readerMargin: updated.readerMargin,
+      readerPageAnimation: updated.readerPageAnimation,
+      readerZoom: updated.readerZoom,
       updatedAt: updated.updatedAt.toISOString(),
     });
   } catch (err: any) {

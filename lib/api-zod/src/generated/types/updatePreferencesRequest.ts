@@ -7,6 +7,13 @@
  */
 import type { UpdatePreferencesRequestFontSize } from './updatePreferencesRequestFontSize';
 import type { UpdatePreferencesRequestLanguage } from './updatePreferencesRequestLanguage';
+import type { UpdatePreferencesRequestReaderFontFamily } from './updatePreferencesRequestReaderFontFamily';
+import type { UpdatePreferencesRequestReaderLayout } from './updatePreferencesRequestReaderLayout';
+import type { UpdatePreferencesRequestReaderLineHeight } from './updatePreferencesRequestReaderLineHeight';
+import type { UpdatePreferencesRequestReaderMargin } from './updatePreferencesRequestReaderMargin';
+import type { UpdatePreferencesRequestReaderPageAnimation } from './updatePreferencesRequestReaderPageAnimation';
+import type { UpdatePreferencesRequestReaderTheme } from './updatePreferencesRequestReaderTheme';
+import type { UpdatePreferencesRequestReaderViewMode } from './updatePreferencesRequestReaderViewMode';
 import type { UpdatePreferencesRequestReadingMode } from './updatePreferencesRequestReadingMode';
 import type { UpdatePreferencesRequestTheme } from './updatePreferencesRequestTheme';
 
@@ -15,4 +22,13 @@ export interface UpdatePreferencesRequest {
   theme?: UpdatePreferencesRequestTheme;
   readingMode?: UpdatePreferencesRequestReadingMode;
   fontSize?: UpdatePreferencesRequestFontSize;
+  readerViewMode?: UpdatePreferencesRequestReaderViewMode;
+  readerLayout?: UpdatePreferencesRequestReaderLayout;
+  readerTheme?: UpdatePreferencesRequestReaderTheme;
+  readerFontFamily?: UpdatePreferencesRequestReaderFontFamily;
+  readerFontSize?: number;
+  readerLineHeight?: UpdatePreferencesRequestReaderLineHeight;
+  readerMargin?: UpdatePreferencesRequestReaderMargin;
+  readerPageAnimation?: UpdatePreferencesRequestReaderPageAnimation;
+  readerZoom?: number;
 }
