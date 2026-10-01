@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { RefreshCw, ImageOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { type Highlight } from "@/features/highlights/types";
+import { TextLayer } from "@/features/highlights/components/TextLayer";
 
 interface OriginalPageProps {
   bookId: string;
@@ -9,6 +11,9 @@ interface OriginalPageProps {
   rotation?: number;
   width?: number | null;
   height?: number | null;
+  textBlocks?: any[] | null;
+  highlights?: Highlight[];
+  onHighlightClick?: (highlight: Highlight, event: React.MouseEvent) => void;
   className?: string;
 }
 
@@ -17,6 +22,11 @@ export function OriginalPage({
   pageNumber,
   zoom = 100,
   rotation = 0,
+  width,
+  height,
+  textBlocks,
+  highlights = [],
+  onHighlightClick,
   className = "",
 }: OriginalPageProps) {
   const { t } = useTranslation(["reader", "common"]);
@@ -67,24 +77,38 @@ export function OriginalPage({
         </div>
       )}
 
-      {/* Rendered Preview Image */}
-      <img
-        key={`${pageNumber}-${reloadKey}`}
-        src={previewUrl}
-        alt={`Página ${pageNumber}`}
-        onLoad={() => setLoading(false)}
-        onError={() => {
-          setLoading(false);
-          setError(true);
-        }}
-        className={`max-w-full max-h-full object-contain transition-transform duration-200 shadow-sm rounded-sm ${
-          loading ? "opacity-0" : "opacity-100"
-        }`}
+      {/* Rendered Preview Image with TextLayer */}
+      <div
+        className="relative inline-block shadow-sm rounded-sm"
         style={{
           transform: `scale(${scale}) rotate(${rotation}deg)`,
           transformOrigin: "center center",
         }}
-      />
+      >
+        <img
+          key={`${pageNumber}-${reloadKey}`}
+          src={previewUrl}
+          alt={`Página ${pageNumber}`}
+          onLoad={() => setLoading(false)}
+          onError={() => {
+            setLoading(false);
+            setError(true);
+          }}
+          className={`max-w-full max-h-full object-contain transition-transform duration-200 ${
+            loading ? "opacity-0" : "opacity-100"
+          }`}
+        />
+        {!loading && !error && (
+          <TextLayer
+            pageNumber={pageNumber}
+            textBlocks={textBlocks}
+            pageWidth={width}
+            pageHeight={height}
+            highlights={highlights}
+            onHighlightClick={onHighlightClick}
+          />
+        )}
+      </div>
     </div>
   );
 }

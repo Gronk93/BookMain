@@ -2,12 +2,15 @@ import React, { useEffect, useRef, useMemo } from "react";
 import { useGetBookPage, getGetBookPageQueryKey } from "@workspace/api-client-react";
 import { ReaderPageView } from "./ReaderPageView";
 import { type ReaderPreferences } from "../hooks/useReaderPreferences";
+import { type Highlight } from "@/features/highlights/types";
 
 interface ContinuousPageItemProps {
   bookId: string;
   pageNumber: number;
   preferences: ReaderPreferences;
   resolvePageMode: (page?: { pageType?: string; qualityScore?: number | null }) => "reading" | "original";
+  highlights?: Highlight[];
+  onHighlightClick?: (highlight: Highlight, event: React.MouseEvent) => void;
   onSwitchToOriginal?: () => void;
   onIntersect: (pageNumber: number) => void;
 }
@@ -17,6 +20,8 @@ function ContinuousPageItem({
   pageNumber,
   preferences,
   resolvePageMode,
+  highlights = [],
+  onHighlightClick,
   onSwitchToOriginal,
   onIntersect,
 }: ContinuousPageItemProps) {
@@ -78,6 +83,8 @@ function ContinuousPageItem({
             pageData={pageData}
             effectiveMode={effectiveMode}
             preferences={preferences}
+            highlights={highlights}
+            onHighlightClick={onHighlightClick}
             onSwitchToOriginal={onSwitchToOriginal}
           />
         </div>
@@ -92,6 +99,8 @@ interface ReaderContinuousViewProps {
   totalPages: number;
   preferences: ReaderPreferences;
   resolvePageMode: (page?: { pageType?: string; qualityScore?: number | null }) => "reading" | "original";
+  highlights?: Highlight[];
+  onHighlightClick?: (highlight: Highlight, event: React.MouseEvent) => void;
   onPageVisible: (pageNumber: number) => void;
   onSwitchToOriginal?: () => void;
   className?: string;
@@ -103,6 +112,8 @@ export function ReaderContinuousView({
   totalPages,
   preferences,
   resolvePageMode,
+  highlights = [],
+  onHighlightClick,
   onPageVisible,
   onSwitchToOriginal,
   className = "",
@@ -127,6 +138,8 @@ export function ReaderContinuousView({
           pageNumber={pageNum}
           preferences={preferences}
           resolvePageMode={resolvePageMode}
+          highlights={highlights.filter((h) => h.pageNumber === pageNum)}
+          onHighlightClick={onHighlightClick}
           onSwitchToOriginal={onSwitchToOriginal}
           onIntersect={onPageVisible}
         />

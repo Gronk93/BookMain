@@ -7,3 +7,5 @@ export * from "./reading-progress";
 export * from "./bookmarks";
 export * from "./notes";
 export * from "./processing-jobs";
+export * from "./highlights";
+export * from "./separators";

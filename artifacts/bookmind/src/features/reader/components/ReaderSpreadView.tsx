@@ -2,6 +2,7 @@ import React from "react";
 import { useGetBookPage, getGetBookPageQueryKey, type BookPageDetail } from "@workspace/api-client-react";
 import { ReaderPageView } from "./ReaderPageView";
 import { type ReaderPreferences } from "../hooks/useReaderPreferences";
+import { type Highlight } from "@/features/highlights/types";
 
 interface ReaderSpreadViewProps {
   bookId: string;
@@ -10,6 +11,8 @@ interface ReaderSpreadViewProps {
   leftPageData?: BookPageDetail | null;
   preferences: ReaderPreferences;
   resolvePageMode: (page?: { pageType?: string; qualityScore?: number | null }) => "reading" | "original";
+  highlights?: Highlight[];
+  onHighlightClick?: (highlight: Highlight, event: React.MouseEvent) => void;
   onSwitchToOriginal?: () => void;
   className?: string;
 }
@@ -21,6 +24,8 @@ export function ReaderSpreadView({
   leftPageData,
   preferences,
   resolvePageMode,
+  highlights = [],
+  onHighlightClick,
   onSwitchToOriginal,
   className = "",
 }: ReaderSpreadViewProps) {
@@ -42,6 +47,7 @@ export function ReaderSpreadView({
 
   // If left page is 1 (Cover), show single centered page
   if (leftPageNumber === 1 || rightPageNumber === null) {
+    const leftHighlights = highlights.filter((h) => h.pageNumber === leftPageNumber);
     return (
       <div className={`w-full flex justify-center items-center py-4 ${className}`}>
         <div className="w-full max-w-2xl bg-card/40 rounded-xl shadow-xs border border-border/30 overflow-hidden">
@@ -51,12 +57,19 @@ export function ReaderSpreadView({
             pageData={leftPageData}
             effectiveMode={leftMode}
             preferences={preferences}
+            highlights={leftHighlights}
+            onHighlightClick={onHighlightClick}
             onSwitchToOriginal={onSwitchToOriginal}
           />
         </div>
       </div>
     );
   }
+
+  const leftHighlights = highlights.filter((h) => h.pageNumber === leftPageNumber);
+  const rightHighlights = rightPageNumber
+    ? highlights.filter((h) => h.pageNumber === rightPageNumber)
+    : [];
 
   return (
     <div className={`w-full flex flex-col md:flex-row items-stretch justify-center gap-2 md:gap-0 max-w-6xl mx-auto py-4 ${className}`}>
@@ -72,6 +85,8 @@ export function ReaderSpreadView({
             pageData={leftPageData}
             effectiveMode={leftMode}
             preferences={preferences}
+            highlights={leftHighlights}
+            onHighlightClick={onHighlightClick}
             onSwitchToOriginal={onSwitchToOriginal}
           />
         </div>
@@ -92,6 +107,8 @@ export function ReaderSpreadView({
             pageData={rightPageData}
             effectiveMode={rightMode}
             preferences={preferences}
+            highlights={rightHighlights}
+            onHighlightClick={onHighlightClick}
             onSwitchToOriginal={onSwitchToOriginal}
           />
         </div>

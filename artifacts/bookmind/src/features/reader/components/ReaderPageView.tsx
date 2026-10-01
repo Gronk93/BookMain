@@ -1,8 +1,8 @@
-import React from "react";
 import { type BookPageDetail } from "@workspace/api-client-react";
 import { OriginalPage } from "./OriginalPage";
 import { ReflowPage } from "./ReflowPage";
 import { type ReaderPreferences } from "../hooks/useReaderPreferences";
+import { type Highlight } from "@/features/highlights/types";
 
 interface ReaderPageViewProps {
   bookId: string;
@@ -10,6 +10,8 @@ interface ReaderPageViewProps {
   pageData?: BookPageDetail | null;
   effectiveMode: "reading" | "original";
   preferences: ReaderPreferences;
+  highlights?: Highlight[];
+  onHighlightClick?: (highlight: Highlight, event: React.MouseEvent) => void;
   onSwitchToOriginal?: () => void;
   className?: string;
 }
@@ -20,6 +22,8 @@ export function ReaderPageView({
   pageData,
   effectiveMode,
   preferences,
+  highlights = [],
+  onHighlightClick,
   onSwitchToOriginal,
   className = "",
 }: ReaderPageViewProps) {
@@ -33,6 +37,9 @@ export function ReaderPageView({
           rotation={pageData?.rotation ?? 0}
           width={pageData?.width}
           height={pageData?.height}
+          textBlocks={pageData?.textBlocks as any}
+          highlights={highlights}
+          onHighlightClick={onHighlightClick}
         />
       </div>
     );
@@ -51,6 +58,8 @@ export function ReaderPageView({
         fontSize={preferences.fontSize}
         lineHeight={preferences.lineHeight}
         margin={preferences.margin}
+        highlights={highlights}
+        onHighlightClick={onHighlightClick}
         onSwitchToOriginal={onSwitchToOriginal}
       />
     </div>

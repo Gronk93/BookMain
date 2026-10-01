@@ -286,6 +286,38 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
   /books/{bookId}/bookmarks:
+    get:
+      operationId: getBookBookmarks
+      tags: [books]
+      summary: Get all bookmarks for a book
+      description: Returns list of bookmarks created for this book
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of bookmarks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bookmark"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
       operationId: createBookmark
       tags: [books]
@@ -361,6 +393,43 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
   /books/{bookId}/notes:
+    get:
+      operationId: getBookNotes
+      tags: [books]
+      summary: Get notes for a book
+      description: Returns list of notes, optionally filtered by pageNumber
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pageNumber
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Note"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
       operationId: createNote
       tags: [books]
@@ -837,8 +906,363 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /notes:
+    get:
+      operationId: getGlobalNotes
+      tags: [books]
+      summary: Get all notes across books
+      description: Returns paginated list of notes for the current user, optionally filtered by search or book
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: bookId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Global notes list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GlobalNotesResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/highlights:
+    get:
+      operationId: getBookHighlights
+      tags: [books]
+      summary: Get highlights for a book
+      description: Returns list of highlights, optionally filtered by pageNumber
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pageNumber
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of highlights
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Highlight"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
-          description: Book or active job not found
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createHighlight
+      tags: [books]
+      summary: Create a highlight
+      description: Creates a stable text anchor highlight on a page
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateHighlightRequest"
+      responses:
+        "201":
+          description: Highlight created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Highlight"
+        "400":
+          description: Invalid anchor or selection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/highlights/{highlightId}:
+    patch:
+      operationId: updateHighlight
+      tags: [books]
+      summary: Update highlight
+      description: Updates highlight color or category
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: highlightId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateHighlightRequest"
+      responses:
+        "200":
+          description: Highlight updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Highlight"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Highlight not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteHighlight
+      tags: [books]
+      summary: Delete highlight
+      description: Soft-deletes a highlight
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: highlightId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Highlight deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Highlight not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/separators:
+    get:
+      operationId: getBookSeparators
+      tags: [books]
+      summary: Get separators for a book
+      description: Returns list of user reading sections/separators
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of separators
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Separator"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createSeparator
+      tags: [books]
+      summary: Create separator
+      description: Creates a user-defined reading range / separator
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSeparatorRequest"
+      responses:
+        "201":
+          description: Separator created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Separator"
+        "400":
+          description: Invalid page range
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/separators/{id}:
+    patch:
+      operationId: updateSeparator
+      tags: [books]
+      summary: Update separator
+      description: Updates title, page range, or color
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSeparatorRequest"
+      responses:
+        "200":
+          description: Separator updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Separator"
+        "400":
+          description: Invalid page range
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Separator not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteSeparator
+      tags: [books]
+      summary: Delete separator
+      description: Deletes a separator by ID
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Separator deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Separator not found
           content:
             application/json:
               schema:
@@ -1277,9 +1701,17 @@ components:
           type: string
         pageNumber:
           type: integer
+        highlightId:
+          type: string
+          nullable: true
         highlightText:
           type: string
           nullable: true
+        selectedText:
+          type: string
+          nullable: true
+        anchorData:
+          $ref: "#/components/schemas/TextAnchor"
         content:
           type: string
         color:
@@ -1304,8 +1736,14 @@ components:
           minimum: 1
         content:
           type: string
+        highlightId:
+          type: string
         highlightText:
           type: string
+        selectedText:
+          type: string
+        anchorData:
+          $ref: "#/components/schemas/TextAnchor"
         color:
           type: string
       required:
@@ -1444,4 +1882,298 @@ components:
           description: Optional language override
       required:
         - file
+
+    BoundingBox:
+      type: object
+      properties:
+        x:
+          type: number
+        y:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+      required:
+        - x
+        - y
+        - width
+        - height
+
+    TextAnchor:
+      type: object
+      properties:
+        anchorVersion:
+          type: integer
+          default: 1
+        pageNumber:
+          type: integer
+        startBlockId:
+          type: string
+        startOffset:
+          type: integer
+        endBlockId:
+          type: string
+        endOffset:
+          type: integer
+        exactText:
+          type: string
+        prefixText:
+          type: string
+          nullable: true
+        suffixText:
+          type: string
+          nullable: true
+        textHash:
+          type: string
+      required:
+        - anchorVersion
+        - pageNumber
+        - startBlockId
+        - startOffset
+        - endBlockId
+        - endOffset
+        - exactText
+        - textHash
+
+    Highlight:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        bookId:
+          type: string
+        pageNumber:
+          type: integer
+        anchorVersion:
+          type: integer
+        startBlockId:
+          type: string
+        startOffset:
+          type: integer
+        endBlockId:
+          type: string
+        endOffset:
+          type: integer
+        exactText:
+          type: string
+        prefixText:
+          type: string
+          nullable: true
+        suffixText:
+          type: string
+          nullable: true
+        textHash:
+          type: string
+        color:
+          type: string
+          enum: [yellow, green, blue, red, violet]
+        category:
+          type: string
+          nullable: true
+          enum: [important, learned, example, not_understood, review]
+        anchorStatus:
+          type: string
+          enum: [resolved, recovered, needs_review, orphaned]
+        boundingBoxes:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/BoundingBox"
+        noteCount:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - userId
+        - bookId
+        - pageNumber
+        - anchorVersion
+        - startBlockId
+        - startOffset
+        - endBlockId
+        - endOffset
+        - exactText
+        - textHash
+        - color
+        - anchorStatus
+        - createdAt
+        - updatedAt
+
+    CreateHighlightRequest:
+      type: object
+      properties:
+        pageNumber:
+          type: integer
+          minimum: 1
+        startBlockId:
+          type: string
+        startOffset:
+          type: integer
+          minimum: 0
+        endBlockId:
+          type: string
+        endOffset:
+          type: integer
+          minimum: 0
+        exactText:
+          type: string
+          maxLength: 10000
+        prefixText:
+          type: string
+        suffixText:
+          type: string
+        color:
+          type: string
+          default: yellow
+          enum: [yellow, green, blue, red, violet]
+        category:
+          type: string
+          enum: [important, learned, example, not_understood, review]
+        boundingBoxes:
+          type: array
+          items:
+            $ref: "#/components/schemas/BoundingBox"
+      required:
+        - pageNumber
+        - startBlockId
+        - startOffset
+        - endBlockId
+        - endOffset
+        - exactText
+
+    UpdateHighlightRequest:
+      type: object
+      properties:
+        color:
+          type: string
+          enum: [yellow, green, blue, red, violet]
+        category:
+          type: string
+          nullable: true
+          enum: [important, learned, example, not_understood, review]
+
+    GlobalNoteItem:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        bookId:
+          type: string
+        bookTitle:
+          type: string
+        pageNumber:
+          type: integer
+        highlightId:
+          type: string
+          nullable: true
+        selectedText:
+          type: string
+          nullable: true
+        content:
+          type: string
+        color:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - bookId
+        - bookTitle
+        - pageNumber
+        - content
+        - color
+        - createdAt
+        - updatedAt
+
+    GlobalNotesResponse:
+      type: object
+      properties:
+        notes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GlobalNoteItem"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+      required:
+        - notes
+        - total
+
+    Separator:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        bookId:
+          type: string
+        title:
+          type: string
+        startPage:
+          type: integer
+        endPage:
+          type: integer
+        color:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - userId
+        - bookId
+        - title
+        - startPage
+        - endPage
+        - color
+        - createdAt
+        - updatedAt
+
+    CreateSeparatorRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        startPage:
+          type: integer
+          minimum: 1
+        endPage:
+          type: integer
+          minimum: 1
+        color:
+          type: string
+          default: indigo
+      required:
+        - title
+        - startPage
+        - endPage
+
+    UpdateSeparatorRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        startPage:
+          type: integer
+        endPage:
+          type: integer
+        color:
+          type: string
+
 

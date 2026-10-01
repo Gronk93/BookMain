@@ -62,6 +62,18 @@ export function AppShell({ children, onToggleTheme, isDark }: AppShellProps) {
           </Link>
 
           <Link
+            href="/notes"
+            className={`rounded-full px-4 py-2 text-sm transition ${
+              location === "/notes"
+                ? "bg-secondary font-medium text-foreground"
+                : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
+            }`}
+            onClick={() => setMenuOpen(false)}
+          >
+            {tc("nav.notes", { defaultValue: "Notas" })}
+          </Link>
+
+          <Link
             href="/settings"
             className={`rounded-full px-4 py-2 text-sm transition ${
               location === "/settings"

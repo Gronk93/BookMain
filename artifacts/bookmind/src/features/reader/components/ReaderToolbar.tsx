@@ -35,6 +35,8 @@ interface ReaderToolbarProps {
   activePanel: "none" | "note" | "insight";
   onToggleNote: () => void;
   onToggleInsight: () => void;
+  onToggleSidebar?: () => void;
+  isSidebarOpen?: boolean;
   onOpenSettings: () => void;
   onOpenNavigator: () => void;
   onPrevPage: () => void;
@@ -59,6 +61,8 @@ export function ReaderToolbar({
   activePanel,
   onToggleNote,
   onToggleInsight,
+  onToggleSidebar,
+  isSidebarOpen,
   onOpenSettings,
   onOpenNavigator,
   onPrevPage,
@@ -164,16 +168,16 @@ export function ReaderToolbar({
             onToggle={onToggleBookmark}
           />
 
-          {/* Notes Toggle */}
+          {/* Notes & Annotations Sidebar Toggle */}
           <button
-            onClick={onToggleNote}
+            onClick={onToggleSidebar || onToggleNote}
             className={`rounded-full p-2 transition-colors ${
-              activePanel === "note"
+              isSidebarOpen || activePanel === "note"
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
-            title={t("notes", { defaultValue: "Notas" })}
-            aria-label={t("notes", { defaultValue: "Notas" })}
+            title={t("notesAndSidebar", { defaultValue: "Notas, marcadores y separadores" })}
+            aria-label={t("notesAndSidebar", { defaultValue: "Notas, marcadores y separadores" })}
           >
             <NotebookPen size={16} />
           </button>

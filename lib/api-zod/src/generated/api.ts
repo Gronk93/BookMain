@@ -220,6 +220,8 @@ export const GetBookDetailsParams = zod.object({
   "bookId": zod.coerce.string()
 })
 
+export const getBookDetailsResponseNotesItemAnchorDataAnchorVersionDefault = 1;
+
 export const GetBookDetailsResponse = zod.object({
   "book": zod.object({
   "id": zod.string(),
@@ -273,7 +275,21 @@ export const GetBookDetailsResponse = zod.object({
   "id": zod.string(),
   "bookId": zod.string(),
   "pageNumber": zod.number().int(),
+  "highlightId": zod.string().nullish(),
   "highlightText": zod.string().nullish(),
+  "selectedText": zod.string().nullish(),
+  "anchorData": zod.object({
+  "anchorVersion": zod.number().int().default(getBookDetailsResponseNotesItemAnchorDataAnchorVersionDefault),
+  "pageNumber": zod.number().int(),
+  "startBlockId": zod.string(),
+  "startOffset": zod.number().int(),
+  "endBlockId": zod.string(),
+  "endOffset": zod.number().int(),
+  "exactText": zod.string(),
+  "prefixText": zod.string().nullish(),
+  "suffixText": zod.string().nullish(),
+  "textHash": zod.string()
+}).optional(),
   "content": zod.string(),
   "color": zod.string(),
   "createdAt": zod.string(),
@@ -327,6 +343,24 @@ export const UpdateReadingProgressResponse = zod.object({
 
 
 /**
+ * Returns list of bookmarks created for this book
+ * @summary Get all bookmarks for a book
+ */
+export const GetBookBookmarksParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const GetBookBookmarksResponseItem = zod.object({
+  "id": zod.string(),
+  "bookId": zod.string(),
+  "pageNumber": zod.number().int(),
+  "title": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const GetBookBookmarksResponse = zod.array(GetBookBookmarksResponseItem)
+
+
+/**
  * Creates a bookmark on a specific page
  * @summary Create bookmark
  */
@@ -367,6 +401,47 @@ export const DeleteBookmarkResponse = zod.object({
 
 
 /**
+ * Returns list of notes, optionally filtered by pageNumber
+ * @summary Get notes for a book
+ */
+export const GetBookNotesParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const GetBookNotesQueryParams = zod.object({
+  "pageNumber": zod.coerce.number().int().optional()
+})
+
+export const getBookNotesResponseAnchorDataAnchorVersionDefault = 1;
+
+export const GetBookNotesResponseItem = zod.object({
+  "id": zod.string(),
+  "bookId": zod.string(),
+  "pageNumber": zod.number().int(),
+  "highlightId": zod.string().nullish(),
+  "highlightText": zod.string().nullish(),
+  "selectedText": zod.string().nullish(),
+  "anchorData": zod.object({
+  "anchorVersion": zod.number().int().default(getBookNotesResponseAnchorDataAnchorVersionDefault),
+  "pageNumber": zod.number().int(),
+  "startBlockId": zod.string(),
+  "startOffset": zod.number().int(),
+  "endBlockId": zod.string(),
+  "endOffset": zod.number().int(),
+  "exactText": zod.string(),
+  "prefixText": zod.string().nullish(),
+  "suffixText": zod.string().nullish(),
+  "textHash": zod.string()
+}).optional(),
+  "content": zod.string(),
+  "color": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string().optional()
+})
+export const GetBookNotesResponse = zod.array(GetBookNotesResponseItem)
+
+
+/**
  * Creates a page note or quote highlight
  * @summary Create note
  */
@@ -375,20 +450,50 @@ export const CreateNoteParams = zod.object({
 })
 
 
-
+export const createNoteBodyAnchorDataAnchorVersionDefault = 1;
 
 export const CreateNoteBody = zod.object({
   "pageNumber": zod.number().int().min(1),
   "content": zod.string(),
+  "highlightId": zod.string().optional(),
   "highlightText": zod.string().optional(),
+  "selectedText": zod.string().optional(),
+  "anchorData": zod.object({
+  "anchorVersion": zod.number().int().default(createNoteBodyAnchorDataAnchorVersionDefault),
+  "pageNumber": zod.number().int(),
+  "startBlockId": zod.string(),
+  "startOffset": zod.number().int(),
+  "endBlockId": zod.string(),
+  "endOffset": zod.number().int(),
+  "exactText": zod.string(),
+  "prefixText": zod.string().nullish(),
+  "suffixText": zod.string().nullish(),
+  "textHash": zod.string()
+}).optional(),
   "color": zod.string().optional()
 })
+
+export const createNoteResponseAnchorDataAnchorVersionDefault = 1;
 
 export const CreateNoteResponse = zod.object({
   "id": zod.string(),
   "bookId": zod.string(),
   "pageNumber": zod.number().int(),
+  "highlightId": zod.string().nullish(),
   "highlightText": zod.string().nullish(),
+  "selectedText": zod.string().nullish(),
+  "anchorData": zod.object({
+  "anchorVersion": zod.number().int().default(createNoteResponseAnchorDataAnchorVersionDefault),
+  "pageNumber": zod.number().int(),
+  "startBlockId": zod.string(),
+  "startOffset": zod.number().int(),
+  "endBlockId": zod.string(),
+  "endOffset": zod.number().int(),
+  "exactText": zod.string(),
+  "prefixText": zod.string().nullish(),
+  "suffixText": zod.string().nullish(),
+  "textHash": zod.string()
+}).optional(),
   "content": zod.string(),
   "color": zod.string(),
   "createdAt": zod.string(),
@@ -410,11 +515,27 @@ export const UpdateNoteBody = zod.object({
   "color": zod.string().optional()
 })
 
+export const updateNoteResponseAnchorDataAnchorVersionDefault = 1;
+
 export const UpdateNoteResponse = zod.object({
   "id": zod.string(),
   "bookId": zod.string(),
   "pageNumber": zod.number().int(),
+  "highlightId": zod.string().nullish(),
   "highlightText": zod.string().nullish(),
+  "selectedText": zod.string().nullish(),
+  "anchorData": zod.object({
+  "anchorVersion": zod.number().int().default(updateNoteResponseAnchorDataAnchorVersionDefault),
+  "pageNumber": zod.number().int(),
+  "startBlockId": zod.string(),
+  "startOffset": zod.number().int(),
+  "endBlockId": zod.string(),
+  "endOffset": zod.number().int(),
+  "exactText": zod.string(),
+  "prefixText": zod.string().nullish(),
+  "suffixText": zod.string().nullish(),
+  "textHash": zod.string()
+}).optional(),
   "content": zod.string(),
   "color": zod.string(),
   "createdAt": zod.string(),
@@ -702,6 +823,305 @@ export const CancelBookProcessingParams = zod.object({
 })
 
 export const CancelBookProcessingResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * Returns paginated list of notes for the current user, optionally filtered by search or book
+ * @summary Get all notes across books
+ */
+export const getGlobalNotesQueryPageDefault = 1;
+export const getGlobalNotesQueryLimitDefault = 50;
+
+export const GetGlobalNotesQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "bookId": zod.coerce.string().optional(),
+  "page": zod.coerce.number().int().default(getGlobalNotesQueryPageDefault),
+  "limit": zod.coerce.number().int().default(getGlobalNotesQueryLimitDefault)
+})
+
+export const GetGlobalNotesResponse = zod.object({
+  "notes": zod.array(zod.object({
+  "id": zod.string(),
+  "userId": zod.string().optional(),
+  "bookId": zod.string(),
+  "bookTitle": zod.string(),
+  "pageNumber": zod.number().int(),
+  "highlightId": zod.string().nullish(),
+  "selectedText": zod.string().nullish(),
+  "content": zod.string(),
+  "color": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})),
+  "total": zod.number().int(),
+  "page": zod.number().int().optional(),
+  "limit": zod.number().int().optional()
+})
+
+
+/**
+ * Returns list of highlights, optionally filtered by pageNumber
+ * @summary Get highlights for a book
+ */
+export const GetBookHighlightsParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const GetBookHighlightsQueryParams = zod.object({
+  "pageNumber": zod.coerce.number().int().optional()
+})
+
+export const GetBookHighlightsResponseItem = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "pageNumber": zod.number().int(),
+  "anchorVersion": zod.number().int(),
+  "startBlockId": zod.string(),
+  "startOffset": zod.number().int(),
+  "endBlockId": zod.string(),
+  "endOffset": zod.number().int(),
+  "exactText": zod.string(),
+  "prefixText": zod.string().nullish(),
+  "suffixText": zod.string().nullish(),
+  "textHash": zod.string(),
+  "color": zod.enum(['yellow', 'green', 'blue', 'red', 'violet']),
+  "category": zod.enum(['important', 'learned', 'example', 'not_understood', 'review']).nullish(),
+  "anchorStatus": zod.enum(['resolved', 'recovered', 'needs_review', 'orphaned']),
+  "boundingBoxes": zod.array(zod.object({
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "height": zod.number()
+})).nullish(),
+  "noteCount": zod.number().int().optional(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const GetBookHighlightsResponse = zod.array(GetBookHighlightsResponseItem)
+
+
+/**
+ * Creates a stable text anchor highlight on a page
+ * @summary Create a highlight
+ */
+export const CreateHighlightParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+
+export const createHighlightBodyStartOffsetMin = 0;
+
+export const createHighlightBodyEndOffsetMin = 0;
+
+export const createHighlightBodyExactTextMax = 10000;
+
+export const createHighlightBodyColorDefault = `yellow`;
+
+export const CreateHighlightBody = zod.object({
+  "pageNumber": zod.number().int().min(1),
+  "startBlockId": zod.string(),
+  "startOffset": zod.number().int().min(createHighlightBodyStartOffsetMin),
+  "endBlockId": zod.string(),
+  "endOffset": zod.number().int().min(createHighlightBodyEndOffsetMin),
+  "exactText": zod.string().max(createHighlightBodyExactTextMax),
+  "prefixText": zod.string().optional(),
+  "suffixText": zod.string().optional(),
+  "color": zod.enum(['yellow', 'green', 'blue', 'red', 'violet']).default(createHighlightBodyColorDefault),
+  "category": zod.enum(['important', 'learned', 'example', 'not_understood', 'review']).optional(),
+  "boundingBoxes": zod.array(zod.object({
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "height": zod.number()
+})).optional()
+})
+
+export const CreateHighlightResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "pageNumber": zod.number().int(),
+  "anchorVersion": zod.number().int(),
+  "startBlockId": zod.string(),
+  "startOffset": zod.number().int(),
+  "endBlockId": zod.string(),
+  "endOffset": zod.number().int(),
+  "exactText": zod.string(),
+  "prefixText": zod.string().nullish(),
+  "suffixText": zod.string().nullish(),
+  "textHash": zod.string(),
+  "color": zod.enum(['yellow', 'green', 'blue', 'red', 'violet']),
+  "category": zod.enum(['important', 'learned', 'example', 'not_understood', 'review']).nullish(),
+  "anchorStatus": zod.enum(['resolved', 'recovered', 'needs_review', 'orphaned']),
+  "boundingBoxes": zod.array(zod.object({
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "height": zod.number()
+})).nullish(),
+  "noteCount": zod.number().int().optional(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * Updates highlight color or category
+ * @summary Update highlight
+ */
+export const UpdateHighlightParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "highlightId": zod.coerce.string()
+})
+
+export const UpdateHighlightBody = zod.object({
+  "color": zod.enum(['yellow', 'green', 'blue', 'red', 'violet']).optional(),
+  "category": zod.enum(['important', 'learned', 'example', 'not_understood', 'review']).nullish()
+})
+
+export const UpdateHighlightResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "pageNumber": zod.number().int(),
+  "anchorVersion": zod.number().int(),
+  "startBlockId": zod.string(),
+  "startOffset": zod.number().int(),
+  "endBlockId": zod.string(),
+  "endOffset": zod.number().int(),
+  "exactText": zod.string(),
+  "prefixText": zod.string().nullish(),
+  "suffixText": zod.string().nullish(),
+  "textHash": zod.string(),
+  "color": zod.enum(['yellow', 'green', 'blue', 'red', 'violet']),
+  "category": zod.enum(['important', 'learned', 'example', 'not_understood', 'review']).nullish(),
+  "anchorStatus": zod.enum(['resolved', 'recovered', 'needs_review', 'orphaned']),
+  "boundingBoxes": zod.array(zod.object({
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "height": zod.number()
+})).nullish(),
+  "noteCount": zod.number().int().optional(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * Soft-deletes a highlight
+ * @summary Delete highlight
+ */
+export const DeleteHighlightParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "highlightId": zod.coerce.string()
+})
+
+export const DeleteHighlightResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * Returns list of user reading sections/separators
+ * @summary Get separators for a book
+ */
+export const GetBookSeparatorsParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const GetBookSeparatorsResponseItem = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "title": zod.string(),
+  "startPage": zod.number().int(),
+  "endPage": zod.number().int(),
+  "color": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const GetBookSeparatorsResponse = zod.array(GetBookSeparatorsResponseItem)
+
+
+/**
+ * Creates a user-defined reading range / separator
+ * @summary Create separator
+ */
+export const CreateSeparatorParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const createSeparatorBodyTitleMax = 255;
+
+
+
+export const createSeparatorBodyColorDefault = `indigo`;
+
+export const CreateSeparatorBody = zod.object({
+  "title": zod.string().max(createSeparatorBodyTitleMax),
+  "startPage": zod.number().int().min(1),
+  "endPage": zod.number().int().min(1),
+  "color": zod.string().default(createSeparatorBodyColorDefault)
+})
+
+export const CreateSeparatorResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "title": zod.string(),
+  "startPage": zod.number().int(),
+  "endPage": zod.number().int(),
+  "color": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * Updates title, page range, or color
+ * @summary Update separator
+ */
+export const UpdateSeparatorParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const UpdateSeparatorBody = zod.object({
+  "title": zod.string().optional(),
+  "startPage": zod.number().int().optional(),
+  "endPage": zod.number().int().optional(),
+  "color": zod.string().optional()
+})
+
+export const UpdateSeparatorResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "title": zod.string(),
+  "startPage": zod.number().int(),
+  "endPage": zod.number().int(),
+  "color": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * Deletes a separator by ID
+ * @summary Delete separator
+ */
+export const DeleteSeparatorParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const DeleteSeparatorResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.string().optional()
 })

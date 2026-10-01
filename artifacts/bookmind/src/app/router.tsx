@@ -4,6 +4,7 @@ import { AppShell } from "@/shared/components/AppShell";
 import { LibraryPage } from "@/features/library/pages/LibraryPage";
 import { ReaderPage } from "@/features/reader/pages/ReaderPage";
 import { SettingsPage } from "@/features/settings/pages/SettingsPage";
+import { NotesPage } from "@/features/notes/pages/NotesPage";
 import { LoginForm } from "@/features/auth/components/LoginForm";
 import { RegisterForm } from "@/features/auth/components/RegisterForm";
 import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
@@ -35,6 +36,13 @@ export function AppRouter() {
           {() => (
             <ProtectedRoute>
               <ReaderPage />
+            </ProtectedRoute>
+          )}
+        </Route>
+        <Route path={ROUTES.NOTES}>
+          {() => (
+            <ProtectedRoute>
+              <NotesPage />
             </ProtectedRoute>
           )}
         </Route>

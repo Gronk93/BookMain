@@ -9,6 +9,7 @@ import {
   getLatestProcessingJob,
   saveBookPagesBatch,
   updateBookStatus,
+  revalidateHighlightsForBook,
 } from "../../lib/repository";
 import type { InsertBookPage } from "../../lib/repository";
 import { calculateFileSha256 } from "../pdf-ingestion/checksum";
@@ -346,6 +347,9 @@ export class ProcessingOrchestrator {
 
       // 4. Save all pages atomically in repository (upsert on book_id, page_number)
       await saveBookPagesBatch(bookId, pagesToInsert);
+
+      // Revalidate and preserve existing highlights with stable text anchoring
+      await revalidateHighlightsForBook(bookId);
 
       // CTQ-01 Invariant: Verify original SHA-256 after processing (El original nunca se destruye)
       const originalShaAfter = await calculateFileSha256(physicalPath);

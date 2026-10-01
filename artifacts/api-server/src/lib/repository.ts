@@ -9,6 +9,8 @@ import {
   readingProgressTable,
   bookmarksTable,
   notesTable,
+  highlightsTable,
+  separatorsTable,
   processingJobsTable,
   type User,
   type UserPreferences,
@@ -19,11 +21,18 @@ import {
   type ReadingProgress,
   type Bookmark,
   type Note,
+  type InsertNote,
+  type Highlight,
+  type InsertHighlight,
+  type Separator,
+  type InsertSeparator,
   type ProcessingJob,
 } from "@workspace/db";
-import { eq, and, desc, isNull, sql } from "drizzle-orm";
+import { eq, and, desc, isNull, sql, inArray } from "drizzle-orm";
 import crypto from "node:crypto";
 import { hashPassword } from "./auth";
+import { computeTextHash, resolveAnchor } from "./anchoring";
+
 export type {
   User,
   UserPreferences,
@@ -34,6 +43,11 @@ export type {
   ReadingProgress,
   Bookmark,
   Note,
+  InsertNote,
+  Highlight,
+  InsertHighlight,
+  Separator,
+  InsertSeparator,
   ProcessingJob,
 };
 
@@ -70,6 +84,8 @@ interface InMemoryStore {
   progress: Map<string, ReadingProgress>; // key: `${userId}:${bookId}`
   bookmarks: Map<string, Bookmark>;
   notes: Map<string, Note>;
+  highlights: Map<string, Highlight>;
+  separators: Map<string, Separator>;
   processingJobs: Map<string, ProcessingJob>; // key: bookId
 }
 
@@ -82,6 +98,8 @@ const memoryStore: InMemoryStore = {
   progress: new Map(),
   bookmarks: new Map(),
   notes: new Map(),
+  highlights: new Map(),
+  separators: new Map(),
   processingJobs: new Map(),
 };
 
@@ -368,6 +386,7 @@ export async function seedBooksForUser(userId: string): Promise<void> {
       parserVersion: "seed-1.0.0",
       ocrVersion: null,
       isBlank: false,
+      contentHash: null,
       processedAt: now,
       createdAt: now,
       updatedAt: now,
@@ -485,7 +504,7 @@ export async function getBookDetails(bookId: string, userId: string): Promise<Bo
     const notes = await db
       .select()
       .from(notesTable)
-      .where(and(eq(notesTable.userId, userId), eq(notesTable.bookId, bookId)));
+      .where(and(eq(notesTable.userId, userId), eq(notesTable.bookId, bookId), isNull(notesTable.deletedAt)));
 
     return {
       book: {
@@ -539,7 +558,7 @@ export async function getBookDetails(bookId: string, userId: string): Promise<Bo
 
   const notes: Note[] = [];
   for (const n of memoryStore.notes.values()) {
-    if (n.userId === userId && n.bookId === bookId) {
+    if (n.userId === userId && n.bookId === bookId && !n.deletedAt) {
       notes.push(n);
     }
   }
@@ -770,6 +789,7 @@ export async function getBookById(bookId: string): Promise<Book | null> {
   if (!book || book.deletedAt) return null;
   return book;
 }
+
 
 export async function getBookFileByBookId(bookId: string): Promise<BookFile | null> {
   const db = getDb();
@@ -1041,6 +1061,7 @@ export async function saveBookPagesBatch(
     parserVersion: p.parserVersion || null,
     ocrVersion: p.ocrVersion || null,
     isBlank: p.isBlank ?? false,
+    contentHash: (p as any).contentHash ?? null,
     processedAt: p.processedAt || now,
     createdAt: now,
     updatedAt: now,
@@ -1142,6 +1163,7 @@ export async function getBookPages(
         parserVersion: bookPagesTable.parserVersion,
         ocrVersion: bookPagesTable.ocrVersion,
         isBlank: bookPagesTable.isBlank,
+        contentHash: bookPagesTable.contentHash,
         processedAt: bookPagesTable.processedAt,
         createdAt: bookPagesTable.createdAt,
         updatedAt: bookPagesTable.updatedAt,
@@ -1259,6 +1281,19 @@ export async function deleteBook(
   memoryStore.progress.delete(`${userId}:${bookId}`);
   memoryStore.pages.delete(bookId);
 
+  for (const [id, h] of memoryStore.highlights.entries()) {
+    if (h.bookId === bookId) memoryStore.highlights.delete(id);
+  }
+  for (const [id, n] of memoryStore.notes.entries()) {
+    if (n.bookId === bookId) memoryStore.notes.delete(id);
+  }
+  for (const [id, s] of memoryStore.separators.entries()) {
+    if (s.bookId === bookId) memoryStore.separators.delete(id);
+  }
+  for (const [id, bm] of memoryStore.bookmarks.entries()) {
+    if (bm.bookId === bookId) memoryStore.bookmarks.delete(id);
+  }
+
   return { success: true, filePath };
 }
 
@@ -1365,6 +1400,37 @@ export async function updateReadingProgress(
   return progress;
 }
 
+// ---------------------------------------------------------------------------
+// BM-PRD-06: Bookmarks Management
+// ---------------------------------------------------------------------------
+
+export async function getBookBookmarks(
+  bookId: string,
+  userId: string,
+): Promise<Bookmark[]> {
+  const db = getDb();
+  if (db && (await checkDatabaseHealth())) {
+    return await db
+      .select()
+      .from(bookmarksTable)
+      .where(
+        and(
+          eq(bookmarksTable.bookId, bookId),
+          eq(bookmarksTable.userId, userId),
+        ),
+      )
+      .orderBy(bookmarksTable.pageNumber, bookmarksTable.createdAt);
+  }
+
+  const list: Bookmark[] = [];
+  for (const bm of memoryStore.bookmarks.values()) {
+    if (bm.bookId === bookId && bm.userId === userId) {
+      list.push(bm);
+    }
+  }
+  return list.sort((a, b) => a.pageNumber - b.pageNumber);
+}
+
 export async function createBookmark(
   bookId: string,
   userId: string,
@@ -1437,10 +1503,202 @@ export async function deleteBookmark(
   return false;
 }
 
+// ---------------------------------------------------------------------------
+// BM-PRD-06: Notes & Global Notes Management
+// ---------------------------------------------------------------------------
+
+export async function getBookNotes(
+  bookId: string,
+  userId: string,
+  pageNumber?: number,
+): Promise<Note[]> {
+  const db = getDb();
+  if (db && (await checkDatabaseHealth())) {
+    const conditions = [
+      eq(notesTable.bookId, bookId),
+      eq(notesTable.userId, userId),
+      isNull(notesTable.deletedAt),
+    ];
+    if (pageNumber !== undefined) {
+      conditions.push(eq(notesTable.pageNumber, pageNumber));
+    }
+    return await db
+      .select()
+      .from(notesTable)
+      .where(and(...conditions))
+      .orderBy(notesTable.pageNumber, desc(notesTable.createdAt));
+  }
+
+  const list: Note[] = [];
+  for (const n of memoryStore.notes.values()) {
+    if (
+      n.bookId === bookId &&
+      n.userId === userId &&
+      !n.deletedAt &&
+      (pageNumber === undefined || n.pageNumber === pageNumber)
+    ) {
+      list.push(n);
+    }
+  }
+  return list.sort((a, b) => {
+    if (a.pageNumber !== b.pageNumber) return a.pageNumber - b.pageNumber;
+    return b.createdAt.getTime() - a.createdAt.getTime();
+  });
+}
+
+export async function getGlobalNotes(
+  userId: string,
+  options: {
+    bookId?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  } = {},
+): Promise<{
+  notes: Array<{
+    id: string;
+    userId: string;
+    bookId: string;
+    bookTitle: string;
+    pageNumber: number;
+    highlightId: string | null;
+    selectedText: string | null;
+    content: string;
+    color: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  total: number;
+  page: number;
+  limit: number;
+}> {
+  const page = Math.max(1, options.page || 1);
+  const limit = Math.min(100, Math.max(1, options.limit || 20));
+  const offset = (page - 1) * limit;
+
+  const db = getDb();
+  if (db && (await checkDatabaseHealth())) {
+    const conditions = [
+      eq(notesTable.userId, userId),
+      isNull(notesTable.deletedAt),
+      isNull(booksTable.deletedAt),
+    ];
+    if (options.bookId) {
+      conditions.push(eq(notesTable.bookId, options.bookId));
+    }
+    if (options.search) {
+      const q = `%${options.search}%`;
+      conditions.push(
+        sql`(${notesTable.content} ILIKE ${q} OR ${notesTable.selectedText} ILIKE ${q} OR ${notesTable.highlightText} ILIKE ${q})`,
+      );
+    }
+
+    const baseQuery = db
+      .select({
+        id: notesTable.id,
+        userId: notesTable.userId,
+        bookId: notesTable.bookId,
+        bookTitle: booksTable.title,
+        pageNumber: notesTable.pageNumber,
+        highlightId: notesTable.highlightId,
+        selectedText: notesTable.selectedText,
+        content: notesTable.content,
+        color: notesTable.color,
+        createdAt: notesTable.createdAt,
+        updatedAt: notesTable.updatedAt,
+      })
+      .from(notesTable)
+      .innerJoin(booksTable, eq(notesTable.bookId, booksTable.id))
+      .where(and(...conditions))
+      .orderBy(desc(notesTable.updatedAt));
+
+    const totalRes = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(notesTable)
+      .innerJoin(booksTable, eq(notesTable.bookId, booksTable.id))
+      .where(and(...conditions));
+    const total = totalRes[0]?.count || 0;
+
+    const rows = await baseQuery.limit(limit).offset(offset);
+    return {
+      notes: rows.map((r) => ({
+        ...r,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+      })),
+      total,
+      page,
+      limit,
+    };
+  }
+
+  // Memory fallback
+  let all: Array<{
+    id: string;
+    userId: string;
+    bookId: string;
+    bookTitle: string;
+    pageNumber: number;
+    highlightId: string | null;
+    selectedText: string | null;
+    content: string;
+    color: string;
+    createdAt: string;
+    updatedAt: string;
+    rawUpdatedAt: Date;
+  }> = [];
+
+  for (const n of memoryStore.notes.values()) {
+    if (n.userId !== userId || n.deletedAt) continue;
+    if (options.bookId && n.bookId !== options.bookId) continue;
+
+    const b = memoryStore.books.get(n.bookId);
+    if (!b || b.deletedAt) continue;
+
+    if (options.search) {
+      const q = options.search.toLowerCase();
+      const match =
+        n.content.toLowerCase().includes(q) ||
+        (n.selectedText && n.selectedText.toLowerCase().includes(q)) ||
+        (n.highlightText && n.highlightText.toLowerCase().includes(q));
+      if (!match) continue;
+    }
+
+    all.push({
+      id: n.id,
+      userId: n.userId,
+      bookId: n.bookId,
+      bookTitle: b.title,
+      pageNumber: n.pageNumber,
+      highlightId: n.highlightId || null,
+      selectedText: n.selectedText || null,
+      content: n.content,
+      color: n.color,
+      createdAt: n.createdAt.toISOString(),
+      updatedAt: n.updatedAt.toISOString(),
+      rawUpdatedAt: n.updatedAt,
+    });
+  }
+
+  all.sort((a, b) => b.rawUpdatedAt.getTime() - a.rawUpdatedAt.getTime());
+  const total = all.length;
+  const paged = all.slice(offset, offset + limit).map(({ rawUpdatedAt, ...rest }) => rest);
+
+  return { notes: paged, total, page, limit };
+}
+
 export async function createNote(
   bookId: string,
   userId: string,
-  data: { pageNumber: number; content: string; highlightText?: string; color?: string },
+  data: {
+    pageNumber: number;
+    content: string;
+    highlightId?: string | null;
+    highlightText?: string | null;
+    selectedText?: string | null;
+    anchorData?: any | null;
+    color?: string;
+  },
 ): Promise<Note | null> {
   const db = getDb();
   const now = new Date();
@@ -1459,9 +1717,13 @@ export async function createNote(
       userId,
       bookId,
       pageNumber: data.pageNumber,
+      highlightId: data.highlightId || null,
+      selectedText: data.selectedText || data.highlightText || null,
+      anchorData: data.anchorData || null,
       content: data.content,
-      highlightText: data.highlightText || null,
+      highlightText: data.highlightText || data.selectedText || null,
       color: data.color || "amber",
+      deletedAt: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -1478,9 +1740,13 @@ export async function createNote(
     userId,
     bookId,
     pageNumber: data.pageNumber,
+    highlightId: data.highlightId || null,
+    selectedText: data.selectedText || data.highlightText || null,
+    anchorData: data.anchorData || null,
     content: data.content,
-    highlightText: data.highlightText || null,
+    highlightText: data.highlightText || data.selectedText || null,
     color: data.color || "amber",
+    deletedAt: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -1506,6 +1772,7 @@ export async function updateNote(
           eq(notesTable.id, noteId),
           eq(notesTable.bookId, bookId),
           eq(notesTable.userId, userId),
+          isNull(notesTable.deletedAt),
         ),
       )
       .limit(1);
@@ -1523,7 +1790,7 @@ export async function updateNote(
 
   // Memory fallback
   const note = memoryStore.notes.get(noteId);
-  if (!note || note.userId !== userId || note.bookId !== bookId) {
+  if (!note || note.userId !== userId || note.bookId !== bookId || note.deletedAt) {
     return null;
   }
   note.content = data.content;
@@ -1538,25 +1805,633 @@ export async function deleteNote(
   userId: string,
 ): Promise<boolean> {
   const db = getDb();
+  const now = new Date();
+
   if (db && (await checkDatabaseHealth())) {
     await db
-      .delete(notesTable)
+      .update(notesTable)
+      .set({ deletedAt: now, updatedAt: now })
       .where(
         and(
           eq(notesTable.id, noteId),
           eq(notesTable.bookId, bookId),
           eq(notesTable.userId, userId),
+          isNull(notesTable.deletedAt),
         ),
       );
     return true;
   }
 
   const note = memoryStore.notes.get(noteId);
-  if (note && note.userId === userId && note.bookId === bookId) {
-    memoryStore.notes.delete(noteId);
+  if (note && note.userId === userId && note.bookId === bookId && !note.deletedAt) {
+    note.deletedAt = now;
+    note.updatedAt = now;
     return true;
   }
   return false;
+}
+
+export async function restoreNote(
+  noteId: string,
+  bookId: string,
+  userId: string,
+): Promise<Note | null> {
+  const db = getDb();
+  const now = new Date();
+
+  if (db && (await checkDatabaseHealth())) {
+    const res = await db
+      .update(notesTable)
+      .set({ deletedAt: null, updatedAt: now })
+      .where(
+        and(
+          eq(notesTable.id, noteId),
+          eq(notesTable.bookId, bookId),
+          eq(notesTable.userId, userId),
+        ),
+      )
+      .returning();
+    return res[0] || null;
+  }
+
+  const note = memoryStore.notes.get(noteId);
+  if (note && note.userId === userId && note.bookId === bookId) {
+    note.deletedAt = null;
+    note.updatedAt = now;
+    return note;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// BM-PRD-06: Highlights & Stable Text Anchoring Management
+// ---------------------------------------------------------------------------
+
+export async function getBookHighlights(
+  bookId: string,
+  userId: string,
+  pageNumber?: number,
+): Promise<Array<Highlight & { noteCount: number }>> {
+  const db = getDb();
+  if (db && (await checkDatabaseHealth())) {
+    const conditions = [
+      eq(highlightsTable.bookId, bookId),
+      eq(highlightsTable.userId, userId),
+      isNull(highlightsTable.deletedAt),
+    ];
+    if (pageNumber !== undefined) {
+      conditions.push(eq(highlightsTable.pageNumber, pageNumber));
+    }
+
+    const highlights = await db
+      .select()
+      .from(highlightsTable)
+      .where(and(...conditions))
+      .orderBy(highlightsTable.pageNumber, highlightsTable.createdAt);
+
+    if (highlights.length === 0) return [];
+
+    const hIds = highlights.map((h) => h.id);
+    const activeNotes = await db
+      .select({ highlightId: notesTable.highlightId })
+      .from(notesTable)
+      .where(and(inArray(notesTable.highlightId, hIds), isNull(notesTable.deletedAt)));
+
+    const countMap = new Map<string, number>();
+    for (const an of activeNotes) {
+      if (an.highlightId) {
+        countMap.set(an.highlightId, (countMap.get(an.highlightId) || 0) + 1);
+      }
+    }
+
+    return highlights.map((h) => ({
+      ...h,
+      noteCount: countMap.get(h.id) || 0,
+    }));
+  }
+
+  // Memory fallback
+  const list: Array<Highlight & { noteCount: number }> = [];
+  for (const h of memoryStore.highlights.values()) {
+    if (
+      h.bookId === bookId &&
+      h.userId === userId &&
+      !h.deletedAt &&
+      (pageNumber === undefined || h.pageNumber === pageNumber)
+    ) {
+      let ncount = 0;
+      for (const n of memoryStore.notes.values()) {
+        if (n.highlightId === h.id && !n.deletedAt) {
+          ncount++;
+        }
+      }
+      list.push({ ...h, noteCount: ncount });
+    }
+  }
+
+  return list.sort((a, b) => {
+    if (a.pageNumber !== b.pageNumber) return a.pageNumber - b.pageNumber;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  });
+}
+
+export async function createHighlight(
+  bookId: string,
+  userId: string,
+  data: {
+    pageNumber: number;
+    startBlockId: string;
+    startOffset: number;
+    endBlockId: string;
+    endOffset: number;
+    exactText: string;
+    prefixText?: string | null;
+    suffixText?: string | null;
+    color?: string;
+    category?: string | null;
+    boundingBoxes?: any[] | null;
+  },
+): Promise<Highlight | null> {
+  const book = await getBookById(bookId);
+  if (!book || book.userId !== userId || book.deletedAt) {
+    return null;
+  }
+
+  const db = getDb();
+  const now = new Date();
+  const id = crypto.randomUUID();
+  const textHash = computeTextHash(data.exactText);
+
+  const highlight: Highlight = {
+    id,
+    userId,
+    bookId,
+    pageNumber: data.pageNumber,
+    anchorVersion: 1,
+    startBlockId: data.startBlockId,
+    startOffset: data.startOffset,
+    endBlockId: data.endBlockId,
+    endOffset: data.endOffset,
+    exactText: data.exactText,
+    prefixText: data.prefixText || null,
+    suffixText: data.suffixText || null,
+    textHash,
+    color: (data.color as any) || "yellow",
+    category: (data.category as any) || null,
+    anchorStatus: "resolved",
+    boundingBoxes: data.boundingBoxes || null,
+    deletedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  if (db && (await checkDatabaseHealth())) {
+    const book = await db
+      .select()
+      .from(booksTable)
+      .where(and(eq(booksTable.id, bookId), eq(booksTable.userId, userId), isNull(booksTable.deletedAt)))
+      .limit(1);
+    if (!book[0]) return null;
+
+    await db.insert(highlightsTable).values(highlight);
+    return highlight;
+  }
+
+  // Memory fallback
+  const b = memoryStore.books.get(bookId);
+  if (!b || b.userId !== userId || b.deletedAt) return null;
+
+  memoryStore.highlights.set(id, highlight);
+  return highlight;
+}
+
+export async function updateHighlight(
+  highlightId: string,
+  bookId: string,
+  userId: string,
+  data: {
+    color?: string;
+    category?: string | null;
+  },
+): Promise<Highlight | null> {
+  const db = getDb();
+  const now = new Date();
+
+  if (db && (await checkDatabaseHealth())) {
+    const existing = await db
+      .select()
+      .from(highlightsTable)
+      .where(
+        and(
+          eq(highlightsTable.id, highlightId),
+          eq(highlightsTable.bookId, bookId),
+          eq(highlightsTable.userId, userId),
+          isNull(highlightsTable.deletedAt),
+        ),
+      )
+      .limit(1);
+    if (!existing[0]) return null;
+
+    const updatePayload: Partial<Highlight> = {
+      updatedAt: now,
+    };
+    if (data.color !== undefined) updatePayload.color = data.color as any;
+    if (data.category !== undefined) updatePayload.category = data.category as any;
+
+    const updated: Highlight = {
+      ...existing[0],
+      ...updatePayload,
+    };
+    await db
+      .update(highlightsTable)
+      .set(updatePayload)
+      .where(eq(highlightsTable.id, highlightId));
+    return updated;
+  }
+
+  // Memory fallback
+  const h = memoryStore.highlights.get(highlightId);
+  if (!h || h.userId !== userId || h.bookId !== bookId || h.deletedAt) {
+    return null;
+  }
+  if (data.color !== undefined) h.color = data.color as any;
+  if (data.category !== undefined) h.category = data.category as any;
+  h.updatedAt = now;
+  return h;
+}
+
+export async function deleteHighlight(
+  highlightId: string,
+  bookId: string,
+  userId: string,
+): Promise<boolean> {
+  const db = getDb();
+  const now = new Date();
+
+  if (db && (await checkDatabaseHealth())) {
+    await db
+      .update(highlightsTable)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(highlightsTable.id, highlightId),
+          eq(highlightsTable.bookId, bookId),
+          eq(highlightsTable.userId, userId),
+          isNull(highlightsTable.deletedAt),
+        ),
+      );
+    return true;
+  }
+
+  const h = memoryStore.highlights.get(highlightId);
+  if (h && h.userId === userId && h.bookId === bookId && !h.deletedAt) {
+    h.deletedAt = now;
+    h.updatedAt = now;
+    return true;
+  }
+  return false;
+}
+
+export async function restoreHighlight(
+  highlightId: string,
+  bookId: string,
+  userId: string,
+): Promise<Highlight | null> {
+  const db = getDb();
+  const now = new Date();
+
+  if (db && (await checkDatabaseHealth())) {
+    const res = await db
+      .update(highlightsTable)
+      .set({ deletedAt: null, updatedAt: now })
+      .where(
+        and(
+          eq(highlightsTable.id, highlightId),
+          eq(highlightsTable.bookId, bookId),
+          eq(highlightsTable.userId, userId),
+        ),
+      )
+      .returning();
+    return res[0] || null;
+  }
+
+  const h = memoryStore.highlights.get(highlightId);
+  if (h && h.userId === userId && h.bookId === bookId) {
+    h.deletedAt = null;
+    h.updatedAt = now;
+    return h;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// BM-PRD-06: Separators (Custom Reading Ranges) Management
+// ---------------------------------------------------------------------------
+
+export async function getBookSeparators(
+  bookId: string,
+  userId: string,
+): Promise<Separator[]> {
+  const db = getDb();
+  if (db && (await checkDatabaseHealth())) {
+    return await db
+      .select()
+      .from(separatorsTable)
+      .where(
+        and(
+          eq(separatorsTable.bookId, bookId),
+          eq(separatorsTable.userId, userId),
+          isNull(separatorsTable.deletedAt),
+        ),
+      )
+      .orderBy(separatorsTable.startPage, separatorsTable.createdAt);
+  }
+
+  const list: Separator[] = [];
+  for (const s of memoryStore.separators.values()) {
+    if (s.bookId === bookId && s.userId === userId && !s.deletedAt) {
+      list.push(s);
+    }
+  }
+  return list.sort((a, b) => a.startPage - b.startPage);
+}
+
+export async function createSeparator(
+  bookId: string,
+  userId: string,
+  data: {
+    title: string;
+    startPage: number;
+    endPage: number;
+    color?: string;
+  },
+): Promise<Separator | null> {
+  const book = await getBookById(bookId);
+  if (!book || book.userId !== userId || book.deletedAt) {
+    return null;
+  }
+
+  if (
+    data.startPage < 1 ||
+    data.startPage > data.endPage ||
+    data.endPage > (book.totalPages || 1)
+  ) {
+    throw new Error(
+      `Invalid separator page range: ${data.startPage}-${data.endPage}. Book has ${book.totalPages} pages.`,
+    );
+  }
+
+  const db = getDb();
+  const now = new Date();
+  const id = crypto.randomUUID();
+
+  const separator: Separator = {
+    id,
+    userId,
+    bookId,
+    title: data.title.trim(),
+    startPage: data.startPage,
+    endPage: data.endPage,
+    color: data.color || "indigo",
+    deletedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  if (db && (await checkDatabaseHealth())) {
+    await db.insert(separatorsTable).values(separator);
+    return separator;
+  }
+
+  // Memory fallback
+  memoryStore.separators.set(id, separator);
+  return separator;
+}
+
+export async function updateSeparator(
+  id: string,
+  bookId: string,
+  userId: string,
+  data: {
+    title?: string;
+    startPage?: number;
+    endPage?: number;
+    color?: string;
+  },
+): Promise<Separator | null> {
+  const book = await getBookById(bookId);
+  if (!book || book.userId !== userId || book.deletedAt) {
+    return null;
+  }
+
+  const db = getDb();
+  const now = new Date();
+
+  if (db && (await checkDatabaseHealth())) {
+    const existing = await db
+      .select()
+      .from(separatorsTable)
+      .where(
+        and(
+          eq(separatorsTable.id, id),
+          eq(separatorsTable.bookId, bookId),
+          eq(separatorsTable.userId, userId),
+          isNull(separatorsTable.deletedAt),
+        ),
+      )
+      .limit(1);
+    if (!existing[0]) return null;
+
+    const startPage = data.startPage ?? existing[0].startPage;
+    const endPage = data.endPage ?? existing[0].endPage;
+
+    if (startPage < 1 || startPage > endPage || endPage > (book.totalPages || 1)) {
+      throw new Error(
+        `Invalid separator page range: ${startPage}-${endPage}. Book has ${book.totalPages} pages.`,
+      );
+    }
+
+    const updated: Separator = {
+      ...existing[0],
+      title: data.title ? data.title.trim() : existing[0].title,
+      startPage,
+      endPage,
+      color: data.color || existing[0].color,
+      updatedAt: now,
+    };
+
+    await db.update(separatorsTable).set(updated).where(eq(separatorsTable.id, id));
+    return updated;
+  }
+
+  // Memory fallback
+  const sep = memoryStore.separators.get(id);
+  if (!sep || sep.userId !== userId || sep.bookId !== bookId || sep.deletedAt) {
+    return null;
+  }
+
+  const startPage = data.startPage ?? sep.startPage;
+  const endPage = data.endPage ?? sep.endPage;
+
+  if (startPage < 1 || startPage > endPage || endPage > (book.totalPages || 1)) {
+    throw new Error(
+      `Invalid separator page range: ${startPage}-${endPage}. Book has ${book.totalPages} pages.`,
+    );
+  }
+
+  if (data.title) sep.title = data.title.trim();
+  sep.startPage = startPage;
+  sep.endPage = endPage;
+  if (data.color) sep.color = data.color;
+  sep.updatedAt = now;
+  return sep;
+}
+
+export async function deleteSeparator(
+  id: string,
+  bookId: string,
+  userId: string,
+): Promise<boolean> {
+  const db = getDb();
+  const now = new Date();
+
+  if (db && (await checkDatabaseHealth())) {
+    await db
+      .update(separatorsTable)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(separatorsTable.id, id),
+          eq(separatorsTable.bookId, bookId),
+          eq(separatorsTable.userId, userId),
+          isNull(separatorsTable.deletedAt),
+        ),
+      );
+    return true;
+  }
+
+  const sep = memoryStore.separators.get(id);
+  if (sep && sep.userId === userId && sep.bookId === bookId && !sep.deletedAt) {
+    sep.deletedAt = now;
+    sep.updatedAt = now;
+    return true;
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// BM-PRD-06: Reprocess Anchor Revalidation Engine
+// ---------------------------------------------------------------------------
+
+export async function revalidateHighlightsForBook(bookId: string): Promise<void> {
+  const db = getDb();
+  const now = new Date();
+
+  if (db && (await checkDatabaseHealth())) {
+    const pages = await db
+      .select()
+      .from(bookPagesTable)
+      .where(eq(bookPagesTable.bookId, bookId));
+
+    if (!pages || pages.length === 0) return;
+
+    const pageMap = new Map<number, BookPage>();
+    for (const p of pages) {
+      pageMap.set(p.pageNumber, p);
+    }
+
+    const highlights = await db
+      .select()
+      .from(highlightsTable)
+      .where(and(eq(highlightsTable.bookId, bookId), isNull(highlightsTable.deletedAt)));
+
+    for (const h of highlights) {
+      const page = pageMap.get(h.pageNumber);
+      const blocks = (page?.textBlocks as any[]) || [];
+      if (!page || blocks.length === 0) {
+        await db
+          .update(highlightsTable)
+          .set({ anchorStatus: "needs_review", updatedAt: now })
+          .where(eq(highlightsTable.id, h.id));
+        continue;
+      }
+
+      const formattedBlocks = blocks.map((b: any, idx: number) => ({
+        id: b.id || `b-${idx + 1}`,
+        text: b.text || "",
+        bbox: b.bbox || null,
+      }));
+
+      const res = resolveAnchor(formattedBlocks, {
+        startBlockId: h.startBlockId,
+        startOffset: h.startOffset,
+        endBlockId: h.endBlockId,
+        endOffset: h.endOffset,
+        exactText: h.exactText,
+        prefixText: h.prefixText,
+        suffixText: h.suffixText,
+        textHash: h.textHash,
+      });
+
+      await db
+        .update(highlightsTable)
+        .set({
+          anchorStatus: res.status as any,
+          startBlockId: res.startBlockId,
+          startOffset: res.startOffset,
+          endBlockId: res.endBlockId,
+          endOffset: res.endOffset,
+          updatedAt: now,
+        })
+        .where(eq(highlightsTable.id, h.id));
+    }
+    return;
+  }
+
+  // Memory fallback
+  const pages = memoryStore.pages.get(bookId) || [];
+  if (!pages || pages.length === 0) return;
+
+  const pageMap = new Map<number, BookPage>();
+  for (const p of pages) {
+    pageMap.set(p.pageNumber, p);
+  }
+
+  for (const h of memoryStore.highlights.values()) {
+    if (h.bookId === bookId && !h.deletedAt) {
+      const page = pageMap.get(h.pageNumber);
+      const blocks = (page?.textBlocks as any[]) || [];
+      if (!page || blocks.length === 0) {
+        h.anchorStatus = "needs_review" as any;
+        h.updatedAt = now;
+        continue;
+      }
+
+      const formattedBlocks = blocks.map((b: any, idx: number) => ({
+        id: b.id || `b-${idx + 1}`,
+        text: b.text || "",
+        bbox: b.bbox || null,
+      }));
+
+      const res = resolveAnchor(formattedBlocks, {
+        startBlockId: h.startBlockId,
+        startOffset: h.startOffset,
+        endBlockId: h.endBlockId,
+        endOffset: h.endOffset,
+        exactText: h.exactText,
+        prefixText: h.prefixText,
+        suffixText: h.suffixText,
+        textHash: h.textHash,
+      });
+
+      h.anchorStatus = res.status as any;
+      h.startBlockId = res.startBlockId;
+      h.startOffset = res.startOffset;
+      h.endBlockId = res.endBlockId;
+      h.endOffset = res.endOffset;
+      h.updatedAt = now;
+    }
+  }
 }
 
 // Seed default demo user for frictionless dev and tests

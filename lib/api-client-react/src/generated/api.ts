@@ -28,9 +28,16 @@ import type {
   BookSummary,
   Bookmark,
   CreateBookmarkRequest,
+  CreateHighlightRequest,
   CreateNoteRequest,
+  CreateSeparatorRequest,
   ErrorResponse,
+  GetBookHighlightsParams,
+  GetBookNotesParams,
+  GetGlobalNotesParams,
+  GlobalNotesResponse,
   HealthStatus,
+  Highlight,
   ImportBookPdfRequest,
   ImportBookResponse,
   LoginRequest,
@@ -40,10 +47,13 @@ import type {
   ReadingProgress,
   RegisterRequest,
   ReprocessBookRequest,
+  Separator,
   SuccessResponse,
+  UpdateHighlightRequest,
   UpdateNoteRequest,
   UpdatePreferencesRequest,
   UpdateReadingProgressRequest,
+  UpdateSeparatorRequest,
   UserPreferences,
   UserProfileResponse
 } from './api.schemas';
@@ -972,6 +982,84 @@ export const useUpdateReadingProgress = <TError = ErrorType<ErrorResponse>,
       return useMutation(getUpdateReadingProgressMutationOptions(options));
     }
 
+export const getGetBookBookmarksUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/bookmarks`
+}
+
+/**
+ * Returns list of bookmarks created for this book
+ * @summary Get all bookmarks for a book
+ */
+export const getBookBookmarks = async (bookId: string, options?: Parameters<typeof customFetch>[1]): Promise<Bookmark[]> => {
+
+  return customFetch<Bookmark[]>(getGetBookBookmarksUrl(bookId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBookBookmarksQueryKey = (bookId: string,) => {
+    return [
+    `/api/books/${bookId}/bookmarks`
+    ] as const;
+    }
+
+
+export const getGetBookBookmarksQueryOptions = <TData = Awaited<ReturnType<typeof getBookBookmarks>>, TError = ErrorType<ErrorResponse>>(bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookBookmarks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBookBookmarksQueryKey(bookId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookBookmarks>>> = ({ signal }) => getBookBookmarks(bookId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBookBookmarks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBookBookmarksQueryResult = NonNullable<Awaited<ReturnType<typeof getBookBookmarks>>>
+export type GetBookBookmarksQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get all bookmarks for a book
+ */
+
+export function useGetBookBookmarks<TData = Awaited<ReturnType<typeof getBookBookmarks>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookBookmarks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBookBookmarksQueryOptions(bookId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getCreateBookmarkUrl = (bookId: string,) => {
 
 
@@ -1138,6 +1226,96 @@ export const useDeleteBookmark = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getDeleteBookmarkMutationOptions(options));
     }
+
+export const getGetBookNotesUrl = (bookId: string,
+    params?: GetBookNotesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/books/${bookId}/notes?${stringifiedParams}` : `/api/books/${bookId}/notes`
+}
+
+/**
+ * Returns list of notes, optionally filtered by pageNumber
+ * @summary Get notes for a book
+ */
+export const getBookNotes = async (bookId: string,
+    params?: GetBookNotesParams, options?: Parameters<typeof customFetch>[1]): Promise<Note[]> => {
+
+  return customFetch<Note[]>(getGetBookNotesUrl(bookId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBookNotesQueryKey = (bookId: string,
+    params?: GetBookNotesParams,) => {
+    return [
+    `/api/books/${bookId}/notes`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetBookNotesQueryOptions = <TData = Awaited<ReturnType<typeof getBookNotes>>, TError = ErrorType<ErrorResponse>>(bookId: string,
+    params?: GetBookNotesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookNotes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBookNotesQueryKey(bookId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookNotes>>> = ({ signal }) => getBookNotes(bookId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBookNotes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBookNotesQueryResult = NonNullable<Awaited<ReturnType<typeof getBookNotes>>>
+export type GetBookNotesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get notes for a book
+ */
+
+export function useGetBookNotes<TData = Awaited<ReturnType<typeof getBookNotes>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string,
+    params?: GetBookNotesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookNotes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBookNotesQueryOptions(bookId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getCreateNoteUrl = (bookId: string,) => {
 
@@ -2208,5 +2386,776 @@ export const useCancelBookProcessing = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getCancelBookProcessingMutationOptions(options));
+    }
+
+export const getGetGlobalNotesUrl = (params?: GetGlobalNotesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/notes?${stringifiedParams}` : `/api/notes`
+}
+
+/**
+ * Returns paginated list of notes for the current user, optionally filtered by search or book
+ * @summary Get all notes across books
+ */
+export const getGlobalNotes = async (params?: GetGlobalNotesParams, options?: Parameters<typeof customFetch>[1]): Promise<GlobalNotesResponse> => {
+
+  return customFetch<GlobalNotesResponse>(getGetGlobalNotesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGlobalNotesQueryKey = (params?: GetGlobalNotesParams,) => {
+    return [
+    `/api/notes`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetGlobalNotesQueryOptions = <TData = Awaited<ReturnType<typeof getGlobalNotes>>, TError = ErrorType<ErrorResponse>>(params?: GetGlobalNotesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGlobalNotes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGlobalNotesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGlobalNotes>>> = ({ signal }) => getGlobalNotes(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGlobalNotes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGlobalNotesQueryResult = NonNullable<Awaited<ReturnType<typeof getGlobalNotes>>>
+export type GetGlobalNotesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get all notes across books
+ */
+
+export function useGetGlobalNotes<TData = Awaited<ReturnType<typeof getGlobalNotes>>, TError = ErrorType<ErrorResponse>>(
+ params?: GetGlobalNotesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGlobalNotes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGlobalNotesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBookHighlightsUrl = (bookId: string,
+    params?: GetBookHighlightsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/books/${bookId}/highlights?${stringifiedParams}` : `/api/books/${bookId}/highlights`
+}
+
+/**
+ * Returns list of highlights, optionally filtered by pageNumber
+ * @summary Get highlights for a book
+ */
+export const getBookHighlights = async (bookId: string,
+    params?: GetBookHighlightsParams, options?: Parameters<typeof customFetch>[1]): Promise<Highlight[]> => {
+
+  return customFetch<Highlight[]>(getGetBookHighlightsUrl(bookId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBookHighlightsQueryKey = (bookId: string,
+    params?: GetBookHighlightsParams,) => {
+    return [
+    `/api/books/${bookId}/highlights`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetBookHighlightsQueryOptions = <TData = Awaited<ReturnType<typeof getBookHighlights>>, TError = ErrorType<ErrorResponse>>(bookId: string,
+    params?: GetBookHighlightsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookHighlights>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBookHighlightsQueryKey(bookId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookHighlights>>> = ({ signal }) => getBookHighlights(bookId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBookHighlights>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBookHighlightsQueryResult = NonNullable<Awaited<ReturnType<typeof getBookHighlights>>>
+export type GetBookHighlightsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get highlights for a book
+ */
+
+export function useGetBookHighlights<TData = Awaited<ReturnType<typeof getBookHighlights>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string,
+    params?: GetBookHighlightsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookHighlights>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBookHighlightsQueryOptions(bookId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateHighlightUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/highlights`
+}
+
+/**
+ * Creates a stable text anchor highlight on a page
+ * @summary Create a highlight
+ */
+export const createHighlight = async (bookId: string,
+    createHighlightRequest: CreateHighlightRequest, options?: Parameters<typeof customFetch>[1]): Promise<Highlight> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Highlight>(getCreateHighlightUrl(bookId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createHighlightRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateHighlightMutationKey = () => ['createHighlight'] as const;
+
+export const getCreateHighlightMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createHighlight>>, TError,CreateHighlightMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createHighlight>>, TError,CreateHighlightMutationVariables, TContext> => {
+
+const mutationKey = getCreateHighlightMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createHighlight>>, CreateHighlightMutationVariables> = (props) => {
+          const {bookId,data} = props ?? {};
+
+          return  createHighlight(bookId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateHighlightMutationResult = NonNullable<Awaited<ReturnType<typeof createHighlight>>>
+    export type CreateHighlightMutationBody = BodyType<CreateHighlightRequest>
+    export type CreateHighlightMutationError = ErrorType<ErrorResponse>
+    export type CreateHighlightMutationVariables = {bookId: string;data: BodyType<CreateHighlightRequest>}
+
+    /**
+ * @summary Create a highlight
+ */
+export const useCreateHighlight = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createHighlight>>, TError,CreateHighlightMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createHighlight>>,
+        TError,
+        CreateHighlightMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateHighlightMutationOptions(options));
+    }
+
+export const getUpdateHighlightUrl = (bookId: string,
+    highlightId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/highlights/${highlightId}`
+}
+
+/**
+ * Updates highlight color or category
+ * @summary Update highlight
+ */
+export const updateHighlight = async (bookId: string,
+    highlightId: string,
+    updateHighlightRequest: UpdateHighlightRequest, options?: Parameters<typeof customFetch>[1]): Promise<Highlight> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Highlight>(getUpdateHighlightUrl(bookId,highlightId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateHighlightRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateHighlightMutationKey = () => ['updateHighlight'] as const;
+
+export const getUpdateHighlightMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHighlight>>, TError,UpdateHighlightMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateHighlight>>, TError,UpdateHighlightMutationVariables, TContext> => {
+
+const mutationKey = getUpdateHighlightMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateHighlight>>, UpdateHighlightMutationVariables> = (props) => {
+          const {bookId,highlightId,data} = props ?? {};
+
+          return  updateHighlight(bookId,highlightId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateHighlightMutationResult = NonNullable<Awaited<ReturnType<typeof updateHighlight>>>
+    export type UpdateHighlightMutationBody = BodyType<UpdateHighlightRequest>
+    export type UpdateHighlightMutationError = ErrorType<ErrorResponse>
+    export type UpdateHighlightMutationVariables = {bookId: string;highlightId: string;data: BodyType<UpdateHighlightRequest>}
+
+    /**
+ * @summary Update highlight
+ */
+export const useUpdateHighlight = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHighlight>>, TError,UpdateHighlightMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateHighlight>>,
+        TError,
+        UpdateHighlightMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateHighlightMutationOptions(options));
+    }
+
+export const getDeleteHighlightUrl = (bookId: string,
+    highlightId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/highlights/${highlightId}`
+}
+
+/**
+ * Soft-deletes a highlight
+ * @summary Delete highlight
+ */
+export const deleteHighlight = async (bookId: string,
+    highlightId: string, options?: Parameters<typeof customFetch>[1]): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteHighlightUrl(bookId,highlightId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteHighlightMutationKey = () => ['deleteHighlight'] as const;
+
+export const getDeleteHighlightMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteHighlight>>, TError,DeleteHighlightMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteHighlight>>, TError,DeleteHighlightMutationVariables, TContext> => {
+
+const mutationKey = getDeleteHighlightMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteHighlight>>, DeleteHighlightMutationVariables> = (props) => {
+          const {bookId,highlightId} = props ?? {};
+
+          return  deleteHighlight(bookId,highlightId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteHighlightMutationResult = NonNullable<Awaited<ReturnType<typeof deleteHighlight>>>
+
+    export type DeleteHighlightMutationError = ErrorType<ErrorResponse>
+    export type DeleteHighlightMutationVariables = {bookId: string;highlightId: string}
+
+    /**
+ * @summary Delete highlight
+ */
+export const useDeleteHighlight = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteHighlight>>, TError,DeleteHighlightMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteHighlight>>,
+        TError,
+        DeleteHighlightMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteHighlightMutationOptions(options));
+    }
+
+export const getGetBookSeparatorsUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/separators`
+}
+
+/**
+ * Returns list of user reading sections/separators
+ * @summary Get separators for a book
+ */
+export const getBookSeparators = async (bookId: string, options?: Parameters<typeof customFetch>[1]): Promise<Separator[]> => {
+
+  return customFetch<Separator[]>(getGetBookSeparatorsUrl(bookId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBookSeparatorsQueryKey = (bookId: string,) => {
+    return [
+    `/api/books/${bookId}/separators`
+    ] as const;
+    }
+
+
+export const getGetBookSeparatorsQueryOptions = <TData = Awaited<ReturnType<typeof getBookSeparators>>, TError = ErrorType<ErrorResponse>>(bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookSeparators>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBookSeparatorsQueryKey(bookId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookSeparators>>> = ({ signal }) => getBookSeparators(bookId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBookSeparators>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBookSeparatorsQueryResult = NonNullable<Awaited<ReturnType<typeof getBookSeparators>>>
+export type GetBookSeparatorsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get separators for a book
+ */
+
+export function useGetBookSeparators<TData = Awaited<ReturnType<typeof getBookSeparators>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookSeparators>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBookSeparatorsQueryOptions(bookId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSeparatorUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/separators`
+}
+
+/**
+ * Creates a user-defined reading range / separator
+ * @summary Create separator
+ */
+export const createSeparator = async (bookId: string,
+    createSeparatorRequest: CreateSeparatorRequest, options?: Parameters<typeof customFetch>[1]): Promise<Separator> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Separator>(getCreateSeparatorUrl(bookId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createSeparatorRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateSeparatorMutationKey = () => ['createSeparator'] as const;
+
+export const getCreateSeparatorMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSeparator>>, TError,CreateSeparatorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSeparator>>, TError,CreateSeparatorMutationVariables, TContext> => {
+
+const mutationKey = getCreateSeparatorMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSeparator>>, CreateSeparatorMutationVariables> = (props) => {
+          const {bookId,data} = props ?? {};
+
+          return  createSeparator(bookId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSeparatorMutationResult = NonNullable<Awaited<ReturnType<typeof createSeparator>>>
+    export type CreateSeparatorMutationBody = BodyType<CreateSeparatorRequest>
+    export type CreateSeparatorMutationError = ErrorType<ErrorResponse>
+    export type CreateSeparatorMutationVariables = {bookId: string;data: BodyType<CreateSeparatorRequest>}
+
+    /**
+ * @summary Create separator
+ */
+export const useCreateSeparator = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSeparator>>, TError,CreateSeparatorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSeparator>>,
+        TError,
+        CreateSeparatorMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateSeparatorMutationOptions(options));
+    }
+
+export const getUpdateSeparatorUrl = (bookId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/separators/${id}`
+}
+
+/**
+ * Updates title, page range, or color
+ * @summary Update separator
+ */
+export const updateSeparator = async (bookId: string,
+    id: string,
+    updateSeparatorRequest: UpdateSeparatorRequest, options?: Parameters<typeof customFetch>[1]): Promise<Separator> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Separator>(getUpdateSeparatorUrl(bookId,id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateSeparatorRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateSeparatorMutationKey = () => ['updateSeparator'] as const;
+
+export const getUpdateSeparatorMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSeparator>>, TError,UpdateSeparatorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSeparator>>, TError,UpdateSeparatorMutationVariables, TContext> => {
+
+const mutationKey = getUpdateSeparatorMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSeparator>>, UpdateSeparatorMutationVariables> = (props) => {
+          const {bookId,id,data} = props ?? {};
+
+          return  updateSeparator(bookId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSeparatorMutationResult = NonNullable<Awaited<ReturnType<typeof updateSeparator>>>
+    export type UpdateSeparatorMutationBody = BodyType<UpdateSeparatorRequest>
+    export type UpdateSeparatorMutationError = ErrorType<ErrorResponse>
+    export type UpdateSeparatorMutationVariables = {bookId: string;id: string;data: BodyType<UpdateSeparatorRequest>}
+
+    /**
+ * @summary Update separator
+ */
+export const useUpdateSeparator = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSeparator>>, TError,UpdateSeparatorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSeparator>>,
+        TError,
+        UpdateSeparatorMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateSeparatorMutationOptions(options));
+    }
+
+export const getDeleteSeparatorUrl = (bookId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/separators/${id}`
+}
+
+/**
+ * Deletes a separator by ID
+ * @summary Delete separator
+ */
+export const deleteSeparator = async (bookId: string,
+    id: string, options?: Parameters<typeof customFetch>[1]): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteSeparatorUrl(bookId,id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteSeparatorMutationKey = () => ['deleteSeparator'] as const;
+
+export const getDeleteSeparatorMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSeparator>>, TError,DeleteSeparatorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSeparator>>, TError,DeleteSeparatorMutationVariables, TContext> => {
+
+const mutationKey = getDeleteSeparatorMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSeparator>>, DeleteSeparatorMutationVariables> = (props) => {
+          const {bookId,id} = props ?? {};
+
+          return  deleteSeparator(bookId,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSeparatorMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSeparator>>>
+
+    export type DeleteSeparatorMutationError = ErrorType<ErrorResponse>
+    export type DeleteSeparatorMutationVariables = {bookId: string;id: string}
+
+    /**
+ * @summary Delete separator
+ */
+export const useDeleteSeparator = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSeparator>>, TError,DeleteSeparatorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSeparator>>,
+        TError,
+        DeleteSeparatorMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteSeparatorMutationOptions(options));
     }
 

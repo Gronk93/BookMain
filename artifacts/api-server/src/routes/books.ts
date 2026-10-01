@@ -7,6 +7,7 @@ import {
   getUserBooks,
   getBookDetails,
   updateReadingProgress,
+  getBookBookmarks,
   createBookmark,
   deleteBookmark,
   createNote,
@@ -635,6 +636,52 @@ router.put("/books/:bookId/progress", async (req, res) => {
   }
 });
 
+router.delete("/books/:bookId", async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { bookId } = req.params;
+
+    const result = await deleteBook(bookId, userId);
+    if (!result.success) {
+      res.status(404).json({
+        success: false,
+        error: { code: "BOOK_NOT_FOUND", message: "Book not found or access denied" },
+      });
+      return;
+    }
+
+    res.json({ success: true, message: "Book deleted" });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: err.message || "Failed to delete book" },
+    });
+  }
+});
+
+router.get("/books/:bookId/bookmarks", async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { bookId } = req.params;
+
+    const bookmarks = await getBookBookmarks(bookId, userId);
+    res.json(
+      bookmarks.map((b) => ({
+        id: b.id,
+        bookId: b.bookId,
+        pageNumber: b.pageNumber,
+        title: b.title,
+        createdAt: b.createdAt.toISOString(),
+      })),
+    );
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: err.message || "Failed to get bookmarks" },
+    });
+  }
+});
+
 router.post("/books/:bookId/bookmarks", async (req, res) => {
   try {
     const userId = req.user!.id;
@@ -692,117 +739,6 @@ router.delete("/books/:bookId/bookmarks/:bookmarkId", async (req, res) => {
     res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: err.message || "Failed to delete bookmark" },
-    });
-  }
-});
-
-router.post("/books/:bookId/notes", async (req, res) => {
-  try {
-    const userId = req.user!.id;
-    const { bookId } = req.params;
-    const { pageNumber, content, highlightText, color } = req.body || {};
-
-    if (typeof pageNumber !== "number" || pageNumber < 1 || !content) {
-      res.status(400).json({
-        success: false,
-        error: { code: "INVALID_INPUT", message: "pageNumber and content are required" },
-      });
-      return;
-    }
-
-    const note = await createNote(bookId, userId, {
-      pageNumber,
-      content,
-      highlightText,
-      color,
-    });
-
-    if (!note) {
-      res.status(404).json({
-        success: false,
-        error: { code: "BOOK_NOT_FOUND", message: "Book not found or access denied" },
-      });
-      return;
-    }
-
-    res.status(201).json({
-      id: note.id,
-      bookId: note.bookId,
-      pageNumber: note.pageNumber,
-      content: note.content,
-      highlightText: note.highlightText,
-      color: note.color,
-      createdAt: note.createdAt.toISOString(),
-      updatedAt: note.updatedAt.toISOString(),
-    });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      error: { code: "INTERNAL_ERROR", message: err.message || "Failed to create note" },
-    });
-  }
-});
-
-router.put("/books/:bookId/notes/:noteId", async (req, res) => {
-  try {
-    const userId = req.user!.id;
-    const { bookId, noteId } = req.params;
-    const { content, color } = req.body || {};
-
-    if (!content) {
-      res.status(400).json({
-        success: false,
-        error: { code: "INVALID_INPUT", message: "content is required" },
-      });
-      return;
-    }
-
-    const note = await updateNote(noteId, bookId, userId, { content, color });
-    if (!note) {
-      res.status(404).json({
-        success: false,
-        error: { code: "NOTE_NOT_FOUND", message: "Note not found or access denied" },
-      });
-      return;
-    }
-
-    res.json({
-      id: note.id,
-      bookId: note.bookId,
-      pageNumber: note.pageNumber,
-      content: note.content,
-      highlightText: note.highlightText,
-      color: note.color,
-      createdAt: note.createdAt.toISOString(),
-      updatedAt: note.updatedAt.toISOString(),
-    });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      error: { code: "INTERNAL_ERROR", message: err.message || "Failed to update note" },
-    });
-  }
-});
-
-router.delete("/books/:bookId/notes/:noteId", async (req, res) => {
-  try {
-    const userId = req.user!.id;
-    const { bookId, noteId } = req.params;
-
-    const ok = await deleteNote(noteId, bookId, userId);
-    if (!ok) {
-      res.status(404).json({
-        success: false,
-        error: { code: "NOT_FOUND", message: "Note not found or access denied" },
-      });
-      return;
-    }
-
-    res.json({ success: true, message: "Note deleted" });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      error: { code: "INTERNAL_ERROR", message: err.message || "Failed to delete note" },
     });
   }
 });

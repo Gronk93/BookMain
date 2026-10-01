@@ -389,11 +389,27 @@ export interface CreateBookmarkRequest {
   title?: string;
 }
 
+export interface TextAnchor {
+  anchorVersion: number;
+  pageNumber: number;
+  startBlockId: string;
+  startOffset: number;
+  endBlockId: string;
+  endOffset: number;
+  exactText: string;
+  prefixText?: string | null;
+  suffixText?: string | null;
+  textHash: string;
+}
+
 export interface Note {
   id: string;
   bookId: string;
   pageNumber: number;
+  highlightId?: string | null;
   highlightText?: string | null;
+  selectedText?: string | null;
+  anchorData?: TextAnchor;
   content: string;
   color: string;
   createdAt: string;
@@ -404,7 +420,10 @@ export interface CreateNoteRequest {
   /** @minimum 1 */
   pageNumber: number;
   content: string;
+  highlightId?: string;
   highlightText?: string;
+  selectedText?: string;
+  anchorData?: TextAnchor;
   color?: string;
 }
 
@@ -468,4 +487,198 @@ export interface ImportBookPdfRequest {
   /** Optional language override */
   language?: string;
 }
+
+export interface BoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export type HighlightColor = typeof HighlightColor[keyof typeof HighlightColor];
+
+
+export const HighlightColor = {
+  yellow: 'yellow',
+  green: 'green',
+  blue: 'blue',
+  red: 'red',
+  violet: 'violet',
+} as const;
+
+export type HighlightCategory = typeof HighlightCategory[keyof typeof HighlightCategory] | null;
+
+
+export const HighlightCategory = {
+  important: 'important',
+  learned: 'learned',
+  example: 'example',
+  not_understood: 'not_understood',
+  review: 'review',
+} as const;
+
+export type HighlightAnchorStatus = typeof HighlightAnchorStatus[keyof typeof HighlightAnchorStatus];
+
+
+export const HighlightAnchorStatus = {
+  resolved: 'resolved',
+  recovered: 'recovered',
+  needs_review: 'needs_review',
+  orphaned: 'orphaned',
+} as const;
+
+export interface Highlight {
+  id: string;
+  userId: string;
+  bookId: string;
+  pageNumber: number;
+  anchorVersion: number;
+  startBlockId: string;
+  startOffset: number;
+  endBlockId: string;
+  endOffset: number;
+  exactText: string;
+  prefixText?: string | null;
+  suffixText?: string | null;
+  textHash: string;
+  color: HighlightColor;
+  category?: HighlightCategory;
+  anchorStatus: HighlightAnchorStatus;
+  boundingBoxes?: BoundingBox[] | null;
+  noteCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateHighlightRequestColor = typeof CreateHighlightRequestColor[keyof typeof CreateHighlightRequestColor];
+
+
+export const CreateHighlightRequestColor = {
+  yellow: 'yellow',
+  green: 'green',
+  blue: 'blue',
+  red: 'red',
+  violet: 'violet',
+} as const;
+
+export type CreateHighlightRequestCategory = typeof CreateHighlightRequestCategory[keyof typeof CreateHighlightRequestCategory];
+
+
+export const CreateHighlightRequestCategory = {
+  important: 'important',
+  learned: 'learned',
+  example: 'example',
+  not_understood: 'not_understood',
+  review: 'review',
+} as const;
+
+export interface CreateHighlightRequest {
+  /** @minimum 1 */
+  pageNumber: number;
+  startBlockId: string;
+  /** @minimum 0 */
+  startOffset: number;
+  endBlockId: string;
+  /** @minimum 0 */
+  endOffset: number;
+  /** @maxLength 10000 */
+  exactText: string;
+  prefixText?: string;
+  suffixText?: string;
+  color?: CreateHighlightRequestColor;
+  category?: CreateHighlightRequestCategory;
+  boundingBoxes?: BoundingBox[];
+}
+
+export type UpdateHighlightRequestColor = typeof UpdateHighlightRequestColor[keyof typeof UpdateHighlightRequestColor];
+
+
+export const UpdateHighlightRequestColor = {
+  yellow: 'yellow',
+  green: 'green',
+  blue: 'blue',
+  red: 'red',
+  violet: 'violet',
+} as const;
+
+export type UpdateHighlightRequestCategory = typeof UpdateHighlightRequestCategory[keyof typeof UpdateHighlightRequestCategory] | null;
+
+
+export const UpdateHighlightRequestCategory = {
+  important: 'important',
+  learned: 'learned',
+  example: 'example',
+  not_understood: 'not_understood',
+  review: 'review',
+} as const;
+
+export interface UpdateHighlightRequest {
+  color?: UpdateHighlightRequestColor;
+  category?: UpdateHighlightRequestCategory;
+}
+
+export interface GlobalNoteItem {
+  id: string;
+  userId?: string;
+  bookId: string;
+  bookTitle: string;
+  pageNumber: number;
+  highlightId?: string | null;
+  selectedText?: string | null;
+  content: string;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GlobalNotesResponse {
+  notes: GlobalNoteItem[];
+  total: number;
+  page?: number;
+  limit?: number;
+}
+
+export interface Separator {
+  id: string;
+  userId: string;
+  bookId: string;
+  title: string;
+  startPage: number;
+  endPage: number;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSeparatorRequest {
+  /** @maxLength 255 */
+  title: string;
+  /** @minimum 1 */
+  startPage: number;
+  /** @minimum 1 */
+  endPage: number;
+  color?: string;
+}
+
+export interface UpdateSeparatorRequest {
+  title?: string;
+  startPage?: number;
+  endPage?: number;
+  color?: string;
+}
+
+export type GetBookNotesParams = {
+pageNumber?: number;
+};
+
+export type GetGlobalNotesParams = {
+search?: string;
+bookId?: string;
+page?: number;
+limit?: number;
+};
+
+export type GetBookHighlightsParams = {
+pageNumber?: number;
+};
 

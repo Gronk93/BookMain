@@ -6,6 +6,8 @@ import {
   type ReaderLineHeight,
   type ReaderMargin,
 } from "../hooks/useReaderPreferences";
+import { type Highlight } from "@/features/highlights/types";
+import { AnchorRenderer } from "@/features/highlights/components/AnchorRenderer";
 
 interface TextBlockItem {
   id?: string;
@@ -25,6 +27,8 @@ interface ReflowPageProps {
   fontSize: number; // 14 to 28
   lineHeight: ReaderLineHeight;
   margin: ReaderMargin;
+  highlights?: Highlight[];
+  onHighlightClick?: (highlight: Highlight, event: React.MouseEvent) => void;
   onSwitchToOriginal?: () => void;
   className?: string;
 }
@@ -40,6 +44,8 @@ export function ReflowPage({
   fontSize,
   lineHeight,
   margin,
+  highlights = [],
+  onHighlightClick,
   onSwitchToOriginal,
   className = "",
 }: ReflowPageProps) {
@@ -107,32 +113,48 @@ export function ReflowPage({
         {/* Render textBlocks if available, else paragraphs from normalizedText */}
         {textBlocks && textBlocks.length > 0 ? (
           <div className="space-y-4">
-            {textBlocks.map((block, idx) => (
-              <p
-                key={block.id || `blk-${pageNumber}-${idx}`}
-                data-page-number={pageNumber}
-                data-block-id={block.id || `b-${idx}`}
-                className="whitespace-pre-wrap transition-colors"
-              >
-                {block.text}
-              </p>
-            ))}
+            {textBlocks.map((block, idx) => {
+              const blockId = block.id || `b-${idx}`;
+              return (
+                <p
+                  key={block.id || `blk-${pageNumber}-${idx}`}
+                  data-page-number={pageNumber}
+                  data-block-id={blockId}
+                  className="whitespace-pre-wrap transition-colors"
+                >
+                  <AnchorRenderer
+                    blockId={blockId}
+                    blockText={block.text}
+                    highlights={highlights}
+                    onHighlightClick={onHighlightClick}
+                  />
+                </p>
+              );
+            })}
           </div>
         ) : normalizedText ? (
           <div className="space-y-4">
             {normalizedText
               .split(/\n\s*\n/)
               .filter(Boolean)
-              .map((para, idx) => (
-                <p
-                  key={`para-${pageNumber}-${idx}`}
-                  data-page-number={pageNumber}
-                  data-block-id={`p-${idx}`}
-                  className="whitespace-pre-wrap transition-colors"
-                >
-                  {para.trim()}
-                </p>
-              ))}
+              .map((para, idx) => {
+                const blockId = `p-${idx}`;
+                return (
+                  <p
+                    key={`para-${pageNumber}-${idx}`}
+                    data-page-number={pageNumber}
+                    data-block-id={blockId}
+                    className="whitespace-pre-wrap transition-colors"
+                  >
+                    <AnchorRenderer
+                      blockId={blockId}
+                      blockText={para.trim()}
+                      highlights={highlights}
+                      onHighlightClick={onHighlightClick}
+                    />
+                  </p>
+                );
+              })}
           </div>
         ) : (
           !isBlank && (

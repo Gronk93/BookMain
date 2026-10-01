@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams } from "wouter";
 import { useTranslation } from "react-i18next";
-import { Sparkles, NotebookPen, X, AlertTriangle } from "lucide-react";
+import { Sparkles, NotebookPen, X, AlertTriangle, Undo2, Check } from "lucide-react";
 import {
   useGetBookDetails,
   getGetBookDetailsQueryKey,
@@ -25,6 +25,21 @@ import { usePagePrefetch } from "../hooks/usePagePrefetch";
 import { useReaderKeyboard } from "../hooks/useReaderKeyboard";
 import { useTouchGestures } from "../hooks/useTouchGestures";
 
+// BM-PRD-06: Highlights, Anchoring, Separators, and Sidebar
+import {
+  type Highlight,
+  type HighlightColor,
+  type HighlightCategory,
+  COLOR_CONFIG,
+} from "@/features/highlights/types";
+import { usePageHighlights } from "@/features/highlights/hooks/usePageHighlights";
+import { useTextSelection } from "@/features/highlights/hooks/useTextSelection";
+import { SelectionToolbar } from "@/features/highlights/components/SelectionToolbar";
+import { HighlightPopover } from "@/features/highlights/components/HighlightPopover";
+import { useSeparators, type Separator } from "@/features/separators/hooks/useSeparators";
+import { SeparatorModal } from "@/features/separators/components/SeparatorModal";
+import { ReaderSidebar } from "../components/ReaderSidebar";
+
 // Modular reader components
 import { ReaderShell } from "../components/ReaderShell";
 import { ReaderToolbar } from "../components/ReaderToolbar";
@@ -41,17 +56,30 @@ export function ReaderPage() {
   const { bookId = "" } = useParams<{ bookId: string }>();
   const { t } = useTranslation(["reader", "common"]);
   const { user } = useAuth();
+  const readerContainerRef = useRef<HTMLDivElement>(null);
 
   // Reader Preferences (viewMode, layout, theme, fontFamily, fontSize, lineHeight, margin, zoom)
   const { preferences, updatePreferences, resolvePageMode } = useReaderPreferences();
 
   // UI state
   const [panel, setPanel] = useState<"none" | "insight" | "note">("none");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedText, setSelectedText] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isNavigatorOpen, setIsNavigatorOpen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Highlights popover & undo state
+  const [activeHighlightPopover, setActiveHighlightPopover] = useState<{
+    highlight: Highlight;
+    position: { top: number; left: number };
+  } | null>(null);
+  const [undoToast, setUndoToast] = useState<{ id: string; text: string } | null>(null);
+
+  // Separator modal state
+  const [isSeparatorModalOpen, setIsSeparatorModalOpen] = useState(false);
+  const [editingSeparator, setEditingSeparator] = useState<Separator | null>(null);
 
   // TanStack Query for book details
   const { data: apiDetails, isLoading: isBookLoading, refetch } = useGetBookDetails(bookId, {
@@ -110,9 +138,11 @@ export function ReaderPage() {
     onEscape: () => {
       setIsSettingsOpen(false);
       setIsNavigatorOpen(false);
+      setIsSidebarOpen(false);
+      setActiveHighlightPopover(null);
       setPanel("none");
     },
-    enabled: !isSettingsOpen && !isNavigatorOpen,
+    enabled: !isSettingsOpen && !isNavigatorOpen && !isSidebarOpen,
   });
 
   // Touch gesture swipe navigation
@@ -120,6 +150,26 @@ export function ReaderPage() {
     onSwipeLeft: nextPage,
     onSwipeRight: prevPage,
   });
+
+  // Text selection tracking inside reading surface
+  const { selectionData, clearSelection } = useTextSelection(readerContainerRef);
+
+  // BM-PRD-06: Highlights hooks
+  const {
+    highlights,
+    createHighlight,
+    updateHighlight,
+    deleteHighlight,
+    restoreHighlight,
+  } = usePageHighlights(bookId);
+
+  // BM-PRD-06: Separators hooks
+  const {
+    separators,
+    createSeparator,
+    updateSeparator,
+    deleteSeparator,
+  } = useSeparators(bookId);
 
   // Local bookmarks & notes state
   const [localBookmarks, setLocalBookmarks] = useState<Bookmark[]>([]);
@@ -182,7 +232,7 @@ export function ReaderPage() {
     }
   };
 
-  // Note save handler
+  // Note save handler (Page note)
   const handleSaveNote = async (text: string) => {
     if (!text.trim()) return;
 
@@ -247,6 +297,88 @@ export function ReaderPage() {
     }
   };
 
+  // Highlight creation handlers from selection toolbar
+  const handleToolbarHighlight = async (color: HighlightColor) => {
+    if (!selectionData) return;
+    try {
+      await createHighlight({
+        pageNumber: selectionData.pageNumber,
+        startBlockId: selectionData.startBlockId,
+        startOffset: selectionData.startOffset,
+        endBlockId: selectionData.endBlockId,
+        endOffset: selectionData.endOffset,
+        exactText: selectionData.exactText,
+        prefixText: selectionData.prefixText,
+        suffixText: selectionData.suffixText,
+        color,
+        category: COLOR_CONFIG[color]?.category || "important",
+        boundingBoxes: selectionData.boundingBoxes,
+      });
+    } finally {
+      clearSelection();
+    }
+  };
+
+  const handleToolbarAddNote = async (color: HighlightColor) => {
+    if (!selectionData) return;
+    try {
+      const created = await createHighlight({
+        pageNumber: selectionData.pageNumber,
+        startBlockId: selectionData.startBlockId,
+        startOffset: selectionData.startOffset,
+        endBlockId: selectionData.endBlockId,
+        endOffset: selectionData.endOffset,
+        exactText: selectionData.exactText,
+        prefixText: selectionData.prefixText,
+        suffixText: selectionData.suffixText,
+        color,
+        category: COLOR_CONFIG[color]?.category || "important",
+        boundingBoxes: selectionData.boundingBoxes,
+      });
+      clearSelection();
+      if (created) {
+        setActiveHighlightPopover({
+          highlight: created,
+          position: { top: selectionData.position.top, left: selectionData.position.left },
+        });
+      }
+    } catch {
+      clearSelection();
+    }
+  };
+
+  // Click on existing highlight opens popover
+  const handleHighlightClick = (hl: Highlight, e: React.MouseEvent) => {
+    clearSelection();
+    setActiveHighlightPopover({
+      highlight: hl,
+      position: { top: e.clientY, left: e.clientX },
+    });
+  };
+
+  // Delete highlight with undo snackbar
+  const handleDeleteHighlight = async () => {
+    if (!activeHighlightPopover) return;
+    const hlId = activeHighlightPopover.highlight.id;
+    const hlText = activeHighlightPopover.highlight.exactText;
+
+    await deleteHighlight(hlId);
+    setActiveHighlightPopover(null);
+
+    setUndoToast({ id: hlId, text: hlText });
+    setTimeout(() => {
+      setUndoToast((prev) => (prev?.id === hlId ? null : prev));
+    }, 6000);
+  };
+
+  // Undo delete
+  const handleUndoHighlight = async () => {
+    if (undoToast) {
+      await restoreHighlight(undoToast.id);
+      setUndoToast(null);
+    }
+  };
+
   // Fullscreen toggle handler
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -289,7 +421,23 @@ export function ReaderPage() {
     return <NotFound />;
   }
 
-  const isOverlayOpen = isSettingsOpen || isNavigatorOpen || panel !== "none";
+  const isOverlayOpen =
+    isSettingsOpen ||
+    isNavigatorOpen ||
+    isSidebarOpen ||
+    isSeparatorModalOpen ||
+    panel !== "none";
+
+  // Attached notes for current popover
+  const popoverNotes = activeHighlightPopover
+    ? localNotes
+        .filter((n) => (n as any).highlightId === activeHighlightPopover.highlight.id)
+        .map((n) => ({
+          id: n.id,
+          content: n.content,
+          createdAt: n.createdAt,
+        }))
+    : [];
 
   return (
     <ReaderShell
@@ -312,6 +460,8 @@ export function ReaderPage() {
         activePanel={panel}
         onToggleNote={() => setPanel(panel === "note" ? "none" : "note")}
         onToggleInsight={() => setPanel(panel === "insight" ? "none" : "insight")}
+        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        isSidebarOpen={isSidebarOpen}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenNavigator={() => setIsNavigatorOpen(true)}
         onPrevPage={prevPage}
@@ -326,8 +476,12 @@ export function ReaderPage() {
 
       {/* Main Reading Surface Container */}
       <main
+        ref={readerContainerRef}
         className="flex-1 w-full pt-16 pb-16 min-h-screen flex items-center justify-center relative select-text"
         data-page-background="true"
+        onClick={() => {
+          if (activeHighlightPopover) setActiveHighlightPopover(null);
+        }}
       >
         {/* Book processing in progress screen */}
         {apiDetails?.book?.processingStatus === "processing" && !pageData?.textContent ? (
@@ -357,6 +511,8 @@ export function ReaderPage() {
                 totalPages={totalPages}
                 preferences={preferences}
                 resolvePageMode={resolvePageMode}
+                highlights={highlights}
+                onHighlightClick={handleHighlightClick}
                 onPageVisible={(visiblePage) => goToPage(visiblePage)}
                 onSwitchToOriginal={handleSwitchToOriginal}
               />
@@ -371,6 +527,8 @@ export function ReaderPage() {
                 leftPageData={pageData}
                 preferences={preferences}
                 resolvePageMode={resolvePageMode}
+                highlights={highlights}
+                onHighlightClick={handleHighlightClick}
                 onSwitchToOriginal={handleSwitchToOriginal}
               />
             )}
@@ -384,6 +542,8 @@ export function ReaderPage() {
                   pageData={pageData}
                   effectiveMode={effectiveMode}
                   preferences={preferences}
+                  highlights={highlights.filter((h) => h.pageNumber === currentPage)}
+                  onHighlightClick={handleHighlightClick}
                   onSwitchToOriginal={handleSwitchToOriginal}
                 />
               </div>
@@ -391,7 +551,7 @@ export function ReaderPage() {
           </div>
         )}
 
-        {/* Side Panels (Notes or AI Insight) */}
+        {/* Side Panels (Quick Page Notes or AI Insight) */}
         {panel !== "none" && (
           <aside className="fixed right-4 bottom-16 top-16 z-30 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card/95 p-5 shadow-2xl backdrop-blur-md overflow-y-auto animate-in slide-in-from-right duration-200">
             {panel === "note" ? (
@@ -411,6 +571,137 @@ export function ReaderPage() {
           </aside>
         )}
       </main>
+
+      {/* Floating Selection Toolbar (appears on text selection) */}
+      {selectionData && !activeHighlightPopover && (
+        <SelectionToolbar
+          selection={selectionData}
+          onHighlight={handleToolbarHighlight}
+          onAddNote={handleToolbarAddNote}
+          onClose={clearSelection}
+        />
+      )}
+
+      {/* Highlight Details & Notes Popover */}
+      {activeHighlightPopover && (
+        <HighlightPopover
+          highlight={activeHighlightPopover.highlight}
+          notes={popoverNotes}
+          position={activeHighlightPopover.position}
+          onUpdateColor={async (color) => {
+            await updateHighlight({
+              highlightId: activeHighlightPopover.highlight.id,
+              color,
+            });
+            setActiveHighlightPopover((prev) =>
+              prev ? { ...prev, highlight: { ...prev.highlight, color } } : null,
+            );
+          }}
+          onUpdateCategory={async (category) => {
+            await updateHighlight({
+              highlightId: activeHighlightPopover.highlight.id,
+              category,
+            });
+            setActiveHighlightPopover((prev) =>
+              prev ? { ...prev, highlight: { ...prev.highlight, category } } : null,
+            );
+          }}
+          onAddNote={async (content) => {
+            const res = await createNoteMutation.mutateAsync({
+              bookId,
+              data: {
+                pageNumber: activeHighlightPopover.highlight.pageNumber,
+                content,
+                color: activeHighlightPopover.highlight.color,
+                highlightId: activeHighlightPopover.highlight.id,
+                highlightText: activeHighlightPopover.highlight.exactText,
+              } as any,
+            });
+            setLocalNotes((prev) => [...prev, res]);
+          }}
+          onDeleteNote={async (noteId) => {
+            setLocalNotes((prev) => prev.filter((n) => n.id !== noteId));
+            await deleteNoteMutation.mutateAsync({ bookId, noteId });
+          }}
+          onDeleteHighlight={handleDeleteHighlight}
+          onClose={() => setActiveHighlightPopover(null)}
+        />
+      )}
+
+      {/* Comprehensive Reader Sidebar (Notes, Bookmarks, Separators) */}
+      <ReaderSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        bookmarks={localBookmarks}
+        highlights={highlights}
+        notes={localNotes}
+        separators={separators}
+        onGoToPage={(p) => {
+          goToPage(p);
+          setIsSidebarOpen(false);
+        }}
+        onDeleteBookmark={async (bmId) => {
+          setLocalBookmarks((prev) => prev.filter((b) => b.id !== bmId));
+          await deleteBookmarkMutation.mutateAsync({ bookId, bookmarkId: bmId });
+        }}
+        onOpenSeparatorModal={(sep) => {
+          setEditingSeparator(sep || null);
+          setIsSeparatorModalOpen(true);
+        }}
+        onDeleteHighlight={async (hlId) => {
+          await deleteHighlight(hlId);
+        }}
+        onDeleteNote={async (noteId) => {
+          setLocalNotes((prev) => prev.filter((n) => n.id !== noteId));
+          await deleteNoteMutation.mutateAsync({ bookId, noteId });
+        }}
+      />
+
+      {/* Separator Modal (Create/Edit Reading Range) */}
+      <SeparatorModal
+        isOpen={isSeparatorModalOpen}
+        onClose={() => {
+          setIsSeparatorModalOpen(false);
+          setEditingSeparator(null);
+        }}
+        totalPages={totalPages}
+        currentPage={currentPage}
+        initialSeparator={editingSeparator}
+        onSave={async (data) => {
+          if (editingSeparator) {
+            await updateSeparator({ id: editingSeparator.id, ...data });
+          } else {
+            await createSeparator(data);
+          }
+        }}
+        onDelete={async (id) => {
+          await deleteSeparator(id);
+        }}
+      />
+
+      {/* Undo Deleted Highlight Toast */}
+      {undoToast && (
+        <div className="fixed bottom-16 right-4 z-50 flex items-center gap-3 rounded-xl border border-border/80 bg-card p-3 shadow-2xl animate-in slide-in-from-bottom duration-200">
+          <span className="text-xs text-foreground font-medium">
+            Subrayado eliminado
+          </span>
+          <button
+            onClick={handleUndoHighlight}
+            className="inline-flex items-center gap-1 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary px-2.5 py-1 text-xs font-semibold transition-colors"
+          >
+            <Undo2 size={13} />
+            <span>Deshacer</span>
+          </button>
+          <button
+            onClick={() => setUndoToast(null)}
+            className="rounded p-1 text-muted-foreground hover:bg-secondary"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      )}
 
       {/* Settings Side Drawer */}
       <ReaderSettings

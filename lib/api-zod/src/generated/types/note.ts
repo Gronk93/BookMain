@@ -5,12 +5,16 @@
  * BookMind Foundation API Specification (BM-PRD-02)
  * OpenAPI spec version: 0.2.0
  */
+import type { TextAnchor } from './textAnchor';
 
 export interface Note {
   id: string;
   bookId: string;
   pageNumber: number;
+  highlightId?: string | null;
   highlightText?: string | null;
+  selectedText?: string | null;
+  anchorData?: TextAnchor;
   content: string;
   color: string;
   createdAt: string;

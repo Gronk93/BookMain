@@ -50,6 +50,7 @@ export const bookPagesTable = pgTable(
     parserVersion: varchar("parser_version", { length: 50 }),
     ocrVersion: varchar("ocr_version", { length: 50 }),
     isBlank: boolean("is_blank").notNull().default(false),
+    contentHash: varchar("content_hash", { length: 64 }),
     processedAt: timestamp("processed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
