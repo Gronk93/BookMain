@@ -15,6 +15,9 @@ tags:
     description: User profile and preferences operations
   - name: books
     description: Books, reading progress, bookmarks and notes operations
+  - name: study
+    description: Study mode, grounded summaries, concepts, flashcards and review
+
 
 paths:
   /healthz:
@@ -1570,6 +1573,831 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /study/overview:
+    get:
+      operationId: getStudyOverview
+      tags: [study]
+      summary: Get study overview
+      description: Returns overall study metrics, cards due today and recent sessions
+      responses:
+        "200":
+          description: Study overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyOverviewResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/study/summaries:
+    get:
+      operationId: listBookSummaries
+      tags: [study]
+      summary: List summaries for a book
+      description: Returns all study summaries generated for this book
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Summaries list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudySummaryListResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: generateStudySummary
+      tags: [study]
+      summary: Generate grounded study summary
+      description: Generates a brief, standard, or deep summary with strict source grounding
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateStudySummaryRequest"
+      responses:
+        "201":
+          description: Summary generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudySummaryDetail"
+        "400":
+          description: Invalid scope or parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/study/summaries/{summaryId}:
+    get:
+      operationId: getStudySummary
+      tags: [study]
+      summary: Get study summary details
+      description: Returns summary and its structured sources
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: summaryId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Summary detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudySummaryDetail"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Summary not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteStudySummary
+      tags: [study]
+      summary: Delete study summary
+      description: Soft deletes a study summary
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: summaryId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Summary deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Summary not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/study/concepts:
+    get:
+      operationId: listBookConcepts
+      tags: [study]
+      summary: List concepts for a book
+      description: Returns extracted study concepts
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Concepts list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyConceptListResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/study/concepts/generate:
+    post:
+      operationId: generateBookConcepts
+      tags: [study]
+      summary: Extract key concepts
+      description: Extracts key ideas and terms grounded in the chosen scope
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateConceptsRequest"
+      responses:
+        "201":
+          description: Concepts generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyConceptListResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/study/decks:
+    get:
+      operationId: listFlashcardDecks
+      tags: [study]
+      summary: List flashcard decks
+      description: Returns flashcard decks for a book
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Decks list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashcardDeckListResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createFlashcardDeck
+      tags: [study]
+      summary: Create flashcard deck
+      description: Creates a new deck for studying
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFlashcardDeckRequest"
+      responses:
+        "201":
+          description: Deck created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashcardDeck"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/study/decks/{deckId}:
+    get:
+      operationId: getFlashcardDeck
+      tags: [study]
+      summary: Get flashcard deck details
+      description: Returns deck with card counts
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: deckId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deck details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashcardDeckDetail"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Deck not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateFlashcardDeck
+      tags: [study]
+      summary: Update flashcard deck
+      description: Updates deck title
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: deckId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFlashcardDeckRequest"
+      responses:
+        "200":
+          description: Deck updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashcardDeck"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Deck not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteFlashcardDeck
+      tags: [study]
+      summary: Delete flashcard deck
+      description: Soft deletes a flashcard deck
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: deckId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deck deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Deck not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/study/decks/{deckId}/generate:
+    post:
+      operationId: generateFlashcardsForDeck
+      tags: [study]
+      summary: Generate AI flashcards for deck
+      description: Generates grounded flashcards from the deck scope
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: deckId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateFlashcardsRequest"
+      responses:
+        "201":
+          description: Flashcards generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashcardListResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Deck or book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/study/decks/{deckId}/cards:
+    get:
+      operationId: listDeckCards
+      tags: [study]
+      summary: List cards in a deck
+      description: Returns flashcards belonging to the deck
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: deckId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cards list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashcardListResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Deck not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createManualFlashcard
+      tags: [study]
+      summary: Create manual flashcard
+      description: Adds a manual card to the deck
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: deckId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFlashcardRequest"
+      responses:
+        "201":
+          description: Card created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Flashcard"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Deck not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/study/cards/{cardId}:
+    patch:
+      operationId: updateFlashcard
+      tags: [study]
+      summary: Update flashcard
+      description: Edits front, back, explanation or difficulty of a flashcard
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFlashcardRequest"
+      responses:
+        "200":
+          description: Card updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Flashcard"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Card not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteFlashcard
+      tags: [study]
+      summary: Delete flashcard
+      description: Soft deletes a flashcard
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Card deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Card not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/study/review:
+    get:
+      operationId: getReviewQueue
+      tags: [study]
+      summary: Get review queue
+      description: Returns cards that are due for review (or all cards if requested)
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: deckId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: all
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Cards ready for review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashcardReviewQueueResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/study/cards/{cardId}/review:
+    post:
+      operationId: submitCardReview
+      tags: [study]
+      summary: Submit flashcard review rating
+      description: Records user review rating and computes next repetition schedule
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitCardReviewRequest"
+      responses:
+        "200":
+          description: Review recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashcardReviewResult"
+        "400":
+          description: Invalid rating
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Card not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/study/sessions:
+    post:
+      operationId: startStudySession
+      tags: [study]
+      summary: Start a study session
+      description: Begins a new review session
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartStudySessionRequest"
+      responses:
+        "201":
+          description: Session started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudySession"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/study/sessions/{sessionId}/complete:
+    patch:
+      operationId: completeStudySession
+      tags: [study]
+      summary: Complete study session
+      description: Finalizes counters and marks session completed
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteStudySessionRequest"
+      responses:
+        "200":
+          description: Session completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudySession"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+
 components:
   schemas:
     HealthStatus:
@@ -2751,6 +3579,630 @@ components:
       required:
         - conversation
         - messages
+
+    StudyScope:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [page, page_range, separator, book, highlights]
+        pageNumber:
+          type: integer
+          nullable: true
+        startPage:
+          type: integer
+          nullable: true
+        endPage:
+          type: integer
+          nullable: true
+        separatorId:
+          type: string
+          nullable: true
+        highlightIds:
+          type: array
+          items:
+            type: string
+          nullable: true
+      required:
+        - type
+
+    StudySummary:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        bookId:
+          type: string
+        scopeType:
+          type: string
+        scopeData:
+          type: object
+        summaryType:
+          type: string
+          enum: [brief, standard, deep]
+        title:
+          type: string
+        content:
+          type: string
+        language:
+          type: string
+        isPersonal:
+          type: boolean
+        includeHighlights:
+          type: boolean
+        includeNotes:
+          type: boolean
+        generationVersion:
+          type: integer
+        promptVersion:
+          type: string
+        sourceHash:
+          type: string
+        status:
+          type: string
+          enum: [ready, outdated, failed]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - userId
+        - bookId
+        - scopeType
+        - scopeData
+        - summaryType
+        - title
+        - content
+        - language
+        - isPersonal
+        - sourceHash
+        - status
+        - createdAt
+        - updatedAt
+
+    StudySummarySource:
+      type: object
+      properties:
+        id:
+          type: string
+        summaryId:
+          type: string
+        chunkId:
+          type: string
+          nullable: true
+        bookId:
+          type: string
+        pageNumber:
+          type: integer
+        quote:
+          type: string
+        startBlockId:
+          type: string
+          nullable: true
+        startOffset:
+          type: integer
+          nullable: true
+        endBlockId:
+          type: string
+          nullable: true
+        endOffset:
+          type: integer
+          nullable: true
+        rank:
+          type: integer
+      required:
+        - id
+        - summaryId
+        - bookId
+        - pageNumber
+        - quote
+        - rank
+
+    StudySummaryDetail:
+      type: object
+      properties:
+        summary:
+          $ref: "#/components/schemas/StudySummary"
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudySummarySource"
+      required:
+        - summary
+        - sources
+
+    GenerateStudySummaryRequest:
+      type: object
+      properties:
+        scope:
+          $ref: "#/components/schemas/StudyScope"
+        summaryType:
+          type: string
+          enum: [brief, standard, deep]
+          default: standard
+        includeHighlights:
+          type: boolean
+          default: false
+        includeNotes:
+          type: boolean
+          default: false
+        language:
+          type: string
+          default: es-MX
+      required:
+        - scope
+        - summaryType
+
+    StudySummaryListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudySummary"
+      required:
+        - items
+
+    StudyConcept:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        bookId:
+          type: string
+        scopeType:
+          type: string
+        scopeData:
+          type: object
+        term:
+          type: string
+        definition:
+          type: string
+        simpleExplanation:
+          type: string
+          nullable: true
+        importance:
+          type: string
+          enum: [essential, high, medium]
+        sourceHash:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - userId
+        - bookId
+        - scopeType
+        - term
+        - definition
+        - importance
+        - sourceHash
+        - status
+        - createdAt
+        - updatedAt
+
+    StudyConceptSource:
+      type: object
+      properties:
+        id:
+          type: string
+        conceptId:
+          type: string
+        chunkId:
+          type: string
+          nullable: true
+        bookId:
+          type: string
+        pageNumber:
+          type: integer
+        quote:
+          type: string
+        rank:
+          type: integer
+      required:
+        - id
+        - conceptId
+        - bookId
+        - pageNumber
+        - quote
+        - rank
+
+    StudyConceptDetail:
+      type: object
+      properties:
+        concept:
+          $ref: "#/components/schemas/StudyConcept"
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudyConceptSource"
+      required:
+        - concept
+        - sources
+
+    GenerateConceptsRequest:
+      type: object
+      properties:
+        scope:
+          $ref: "#/components/schemas/StudyScope"
+        count:
+          type: integer
+          default: 10
+      required:
+        - scope
+
+    StudyConceptListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudyConceptDetail"
+      required:
+        - items
+
+    FlashcardDeck:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        bookId:
+          type: string
+        title:
+          type: string
+        scopeType:
+          type: string
+        scopeData:
+          type: object
+        generationVersion:
+          type: integer
+        cardsCount:
+          type: integer
+          nullable: true
+        dueCount:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - userId
+        - bookId
+        - title
+        - scopeType
+        - scopeData
+        - generationVersion
+        - createdAt
+        - updatedAt
+
+    CreateFlashcardDeckRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        scope:
+          $ref: "#/components/schemas/StudyScope"
+      required:
+        - title
+        - scope
+
+    UpdateFlashcardDeckRequest:
+      type: object
+      properties:
+        title:
+          type: string
+
+    FlashcardDeckListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FlashcardDeck"
+      required:
+        - items
+
+    FlashcardDeckDetail:
+      type: object
+      properties:
+        deck:
+          $ref: "#/components/schemas/FlashcardDeck"
+        cardsCount:
+          type: integer
+        dueCount:
+          type: integer
+      required:
+        - deck
+        - cardsCount
+        - dueCount
+
+    Flashcard:
+      type: object
+      properties:
+        id:
+          type: string
+        deckId:
+          type: string
+        userId:
+          type: string
+        bookId:
+          type: string
+        cardType:
+          type: string
+          enum: [concept, question, cloze]
+        origin:
+          type: string
+          enum: [ai, manual]
+        front:
+          type: string
+        back:
+          type: string
+        explanation:
+          type: string
+          nullable: true
+        sourcePage:
+          type: integer
+          nullable: true
+        sourceAnchorData:
+          type: object
+          nullable: true
+        contentHash:
+          type: string
+        sourceHash:
+          type: string
+          nullable: true
+        difficulty:
+          type: string
+        status:
+          type: string
+          enum: [ready, outdated]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - deckId
+        - userId
+        - bookId
+        - cardType
+        - origin
+        - front
+        - back
+        - contentHash
+        - difficulty
+        - status
+        - createdAt
+        - updatedAt
+
+    GenerateFlashcardsRequest:
+      type: object
+      properties:
+        count:
+          type: integer
+          enum: [5, 10, 20]
+          default: 10
+        cardTypes:
+          type: array
+          items:
+            type: string
+            enum: [concept, question, cloze]
+
+    CreateFlashcardRequest:
+      type: object
+      properties:
+        cardType:
+          type: string
+          enum: [concept, question, cloze]
+          default: question
+        front:
+          type: string
+        back:
+          type: string
+        explanation:
+          type: string
+          nullable: true
+        sourcePage:
+          type: integer
+          nullable: true
+      required:
+        - front
+        - back
+
+    UpdateFlashcardRequest:
+      type: object
+      properties:
+        front:
+          type: string
+        back:
+          type: string
+        explanation:
+          type: string
+          nullable: true
+        difficulty:
+          type: string
+
+    FlashcardListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Flashcard"
+      required:
+        - items
+
+    FlashcardReview:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        flashcardId:
+          type: string
+        rating:
+          type: string
+          enum: [again, hard, good, easy]
+        reviewedAt:
+          type: string
+        previousIntervalDays:
+          type: integer
+        nextIntervalDays:
+          type: integer
+        dueAt:
+          type: string
+      required:
+        - id
+        - userId
+        - flashcardId
+        - rating
+        - reviewedAt
+        - previousIntervalDays
+        - nextIntervalDays
+        - dueAt
+
+    SubmitCardReviewRequest:
+      type: object
+      properties:
+        rating:
+          type: string
+          enum: [again, hard, good, easy]
+      required:
+        - rating
+
+    FlashcardReviewResult:
+      type: object
+      properties:
+        review:
+          $ref: "#/components/schemas/FlashcardReview"
+        nextDueAt:
+          type: string
+        nextIntervalDays:
+          type: integer
+      required:
+        - review
+        - nextDueAt
+        - nextIntervalDays
+
+    FlashcardReviewQueueResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Flashcard"
+        dueCount:
+          type: integer
+        totalCards:
+          type: integer
+      required:
+        - items
+        - dueCount
+        - totalCards
+
+    StudySession:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        bookId:
+          type: string
+        deckId:
+          type: string
+          nullable: true
+        sessionType:
+          type: string
+        startedAt:
+          type: string
+        completedAt:
+          type: string
+          nullable: true
+        cardsSeen:
+          type: integer
+        cardsAgain:
+          type: integer
+        cardsHard:
+          type: integer
+        cardsGood:
+          type: integer
+        cardsEasy:
+          type: integer
+      required:
+        - id
+        - userId
+        - bookId
+        - sessionType
+        - startedAt
+        - cardsSeen
+        - cardsAgain
+        - cardsHard
+        - cardsGood
+        - cardsEasy
+
+    StartStudySessionRequest:
+      type: object
+      properties:
+        deckId:
+          type: string
+          nullable: true
+        sessionType:
+          type: string
+          default: flashcard_review
+
+    CompleteStudySessionRequest:
+      type: object
+      properties:
+        cardsSeen:
+          type: integer
+          default: 0
+        cardsAgain:
+          type: integer
+          default: 0
+        cardsHard:
+          type: integer
+          default: 0
+        cardsGood:
+          type: integer
+          default: 0
+        cardsEasy:
+          type: integer
+          default: 0
+
+    StudyOverviewResponse:
+      type: object
+      properties:
+        dueCardsToday:
+          type: integer
+        recentSessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudySession"
+        totalDecks:
+          type: integer
+        totalCards:
+          type: integer
+      required:
+        - dueCardsToday
+        - recentSessions
+        - totalDecks
+        - totalCards
+
 
 
 

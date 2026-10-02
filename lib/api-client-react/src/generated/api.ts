@@ -32,7 +32,10 @@ import type {
   BookPagesListResponse,
   BookSummary,
   Bookmark,
+  CompleteStudySessionRequest,
   CreateBookmarkRequest,
+  CreateFlashcardDeckRequest,
+  CreateFlashcardRequest,
   CreateHighlightRequest,
   CreateNoteRequest,
   CreateSeparatorRequest,
@@ -41,9 +44,20 @@ import type {
   ErrorResponse,
   ExplainRequest,
   ExplainResponse,
+  Flashcard,
+  FlashcardDeck,
+  FlashcardDeckDetail,
+  FlashcardDeckListResponse,
+  FlashcardListResponse,
+  FlashcardReviewQueueResponse,
+  FlashcardReviewResult,
+  GenerateConceptsRequest,
+  GenerateFlashcardsRequest,
+  GenerateStudySummaryRequest,
   GetBookHighlightsParams,
   GetBookNotesParams,
   GetGlobalNotesParams,
+  GetReviewQueueParams,
   GlobalNotesResponse,
   HealthStatus,
   Highlight,
@@ -57,7 +71,16 @@ import type {
   RegisterRequest,
   ReprocessBookRequest,
   Separator,
+  StartStudySessionRequest,
+  StudyConceptListResponse,
+  StudyOverviewResponse,
+  StudySession,
+  StudySummaryDetail,
+  StudySummaryListResponse,
+  SubmitCardReviewRequest,
   SuccessResponse,
+  UpdateFlashcardDeckRequest,
+  UpdateFlashcardRequest,
   UpdateHighlightRequest,
   UpdateNoteRequest,
   UpdatePreferencesRequest,
@@ -3827,5 +3850,1799 @@ export const useDeleteAiConversation = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getDeleteAiConversationMutationOptions(options));
+    }
+
+export const getGetStudyOverviewUrl = () => {
+
+
+
+
+  return `/api/study/overview`
+}
+
+/**
+ * Returns overall study metrics, cards due today and recent sessions
+ * @summary Get study overview
+ */
+export const getStudyOverview = async ( options?: Parameters<typeof customFetch>[1]): Promise<StudyOverviewResponse> => {
+
+  return customFetch<StudyOverviewResponse>(getGetStudyOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStudyOverviewQueryKey = () => {
+    return [
+    `/api/study/overview`
+    ] as const;
+    }
+
+
+export const getGetStudyOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getStudyOverview>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudyOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStudyOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStudyOverview>>> = ({ signal }) => getStudyOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStudyOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStudyOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getStudyOverview>>>
+export type GetStudyOverviewQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get study overview
+ */
+
+export function useGetStudyOverview<TData = Awaited<ReturnType<typeof getStudyOverview>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudyOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStudyOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListBookSummariesUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/summaries`
+}
+
+/**
+ * Returns all study summaries generated for this book
+ * @summary List summaries for a book
+ */
+export const listBookSummaries = async (bookId: string, options?: Parameters<typeof customFetch>[1]): Promise<StudySummaryListResponse> => {
+
+  return customFetch<StudySummaryListResponse>(getListBookSummariesUrl(bookId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBookSummariesQueryKey = (bookId: string,) => {
+    return [
+    `/api/books/${bookId}/study/summaries`
+    ] as const;
+    }
+
+
+export const getListBookSummariesQueryOptions = <TData = Awaited<ReturnType<typeof listBookSummaries>>, TError = ErrorType<ErrorResponse>>(bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBookSummaries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBookSummariesQueryKey(bookId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBookSummaries>>> = ({ signal }) => listBookSummaries(bookId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBookSummaries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBookSummariesQueryResult = NonNullable<Awaited<ReturnType<typeof listBookSummaries>>>
+export type ListBookSummariesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List summaries for a book
+ */
+
+export function useListBookSummaries<TData = Awaited<ReturnType<typeof listBookSummaries>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBookSummaries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBookSummariesQueryOptions(bookId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGenerateStudySummaryUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/summaries`
+}
+
+/**
+ * Generates a brief, standard, or deep summary with strict source grounding
+ * @summary Generate grounded study summary
+ */
+export const generateStudySummary = async (bookId: string,
+    generateStudySummaryRequest: GenerateStudySummaryRequest, options?: Parameters<typeof customFetch>[1]): Promise<StudySummaryDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StudySummaryDetail>(getGenerateStudySummaryUrl(bookId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(generateStudySummaryRequest)
+  }
+);}
+
+
+
+
+
+export const getGenerateStudySummaryMutationKey = () => ['generateStudySummary'] as const;
+
+export const getGenerateStudySummaryMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateStudySummary>>, TError,GenerateStudySummaryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateStudySummary>>, TError,GenerateStudySummaryMutationVariables, TContext> => {
+
+const mutationKey = getGenerateStudySummaryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateStudySummary>>, GenerateStudySummaryMutationVariables> = (props) => {
+          const {bookId,data} = props ?? {};
+
+          return  generateStudySummary(bookId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateStudySummaryMutationResult = NonNullable<Awaited<ReturnType<typeof generateStudySummary>>>
+    export type GenerateStudySummaryMutationBody = BodyType<GenerateStudySummaryRequest>
+    export type GenerateStudySummaryMutationError = ErrorType<ErrorResponse>
+    export type GenerateStudySummaryMutationVariables = {bookId: string;data: BodyType<GenerateStudySummaryRequest>}
+
+    /**
+ * @summary Generate grounded study summary
+ */
+export const useGenerateStudySummary = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateStudySummary>>, TError,GenerateStudySummaryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateStudySummary>>,
+        TError,
+        GenerateStudySummaryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGenerateStudySummaryMutationOptions(options));
+    }
+
+export const getGetStudySummaryUrl = (bookId: string,
+    summaryId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/summaries/${summaryId}`
+}
+
+/**
+ * Returns summary and its structured sources
+ * @summary Get study summary details
+ */
+export const getStudySummary = async (bookId: string,
+    summaryId: string, options?: Parameters<typeof customFetch>[1]): Promise<StudySummaryDetail> => {
+
+  return customFetch<StudySummaryDetail>(getGetStudySummaryUrl(bookId,summaryId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStudySummaryQueryKey = (bookId: string,
+    summaryId: string,) => {
+    return [
+    `/api/books/${bookId}/study/summaries/${summaryId}`
+    ] as const;
+    }
+
+
+export const getGetStudySummaryQueryOptions = <TData = Awaited<ReturnType<typeof getStudySummary>>, TError = ErrorType<ErrorResponse>>(bookId: string,
+    summaryId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudySummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStudySummaryQueryKey(bookId,summaryId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStudySummary>>> = ({ signal }) => getStudySummary(bookId,summaryId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined && summaryId !== null && summaryId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStudySummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStudySummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getStudySummary>>>
+export type GetStudySummaryQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get study summary details
+ */
+
+export function useGetStudySummary<TData = Awaited<ReturnType<typeof getStudySummary>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string,
+    summaryId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudySummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStudySummaryQueryOptions(bookId,summaryId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteStudySummaryUrl = (bookId: string,
+    summaryId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/summaries/${summaryId}`
+}
+
+/**
+ * Soft deletes a study summary
+ * @summary Delete study summary
+ */
+export const deleteStudySummary = async (bookId: string,
+    summaryId: string, options?: Parameters<typeof customFetch>[1]): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteStudySummaryUrl(bookId,summaryId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteStudySummaryMutationKey = () => ['deleteStudySummary'] as const;
+
+export const getDeleteStudySummaryMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStudySummary>>, TError,DeleteStudySummaryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteStudySummary>>, TError,DeleteStudySummaryMutationVariables, TContext> => {
+
+const mutationKey = getDeleteStudySummaryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteStudySummary>>, DeleteStudySummaryMutationVariables> = (props) => {
+          const {bookId,summaryId} = props ?? {};
+
+          return  deleteStudySummary(bookId,summaryId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteStudySummaryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteStudySummary>>>
+
+    export type DeleteStudySummaryMutationError = ErrorType<ErrorResponse>
+    export type DeleteStudySummaryMutationVariables = {bookId: string;summaryId: string}
+
+    /**
+ * @summary Delete study summary
+ */
+export const useDeleteStudySummary = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStudySummary>>, TError,DeleteStudySummaryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteStudySummary>>,
+        TError,
+        DeleteStudySummaryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteStudySummaryMutationOptions(options));
+    }
+
+export const getListBookConceptsUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/concepts`
+}
+
+/**
+ * Returns extracted study concepts
+ * @summary List concepts for a book
+ */
+export const listBookConcepts = async (bookId: string, options?: Parameters<typeof customFetch>[1]): Promise<StudyConceptListResponse> => {
+
+  return customFetch<StudyConceptListResponse>(getListBookConceptsUrl(bookId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBookConceptsQueryKey = (bookId: string,) => {
+    return [
+    `/api/books/${bookId}/study/concepts`
+    ] as const;
+    }
+
+
+export const getListBookConceptsQueryOptions = <TData = Awaited<ReturnType<typeof listBookConcepts>>, TError = ErrorType<ErrorResponse>>(bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBookConcepts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBookConceptsQueryKey(bookId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBookConcepts>>> = ({ signal }) => listBookConcepts(bookId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBookConcepts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBookConceptsQueryResult = NonNullable<Awaited<ReturnType<typeof listBookConcepts>>>
+export type ListBookConceptsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List concepts for a book
+ */
+
+export function useListBookConcepts<TData = Awaited<ReturnType<typeof listBookConcepts>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBookConcepts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBookConceptsQueryOptions(bookId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGenerateBookConceptsUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/concepts/generate`
+}
+
+/**
+ * Extracts key ideas and terms grounded in the chosen scope
+ * @summary Extract key concepts
+ */
+export const generateBookConcepts = async (bookId: string,
+    generateConceptsRequest: GenerateConceptsRequest, options?: Parameters<typeof customFetch>[1]): Promise<StudyConceptListResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StudyConceptListResponse>(getGenerateBookConceptsUrl(bookId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(generateConceptsRequest)
+  }
+);}
+
+
+
+
+
+export const getGenerateBookConceptsMutationKey = () => ['generateBookConcepts'] as const;
+
+export const getGenerateBookConceptsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateBookConcepts>>, TError,GenerateBookConceptsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateBookConcepts>>, TError,GenerateBookConceptsMutationVariables, TContext> => {
+
+const mutationKey = getGenerateBookConceptsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateBookConcepts>>, GenerateBookConceptsMutationVariables> = (props) => {
+          const {bookId,data} = props ?? {};
+
+          return  generateBookConcepts(bookId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateBookConceptsMutationResult = NonNullable<Awaited<ReturnType<typeof generateBookConcepts>>>
+    export type GenerateBookConceptsMutationBody = BodyType<GenerateConceptsRequest>
+    export type GenerateBookConceptsMutationError = ErrorType<ErrorResponse>
+    export type GenerateBookConceptsMutationVariables = {bookId: string;data: BodyType<GenerateConceptsRequest>}
+
+    /**
+ * @summary Extract key concepts
+ */
+export const useGenerateBookConcepts = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateBookConcepts>>, TError,GenerateBookConceptsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateBookConcepts>>,
+        TError,
+        GenerateBookConceptsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGenerateBookConceptsMutationOptions(options));
+    }
+
+export const getListFlashcardDecksUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/decks`
+}
+
+/**
+ * Returns flashcard decks for a book
+ * @summary List flashcard decks
+ */
+export const listFlashcardDecks = async (bookId: string, options?: Parameters<typeof customFetch>[1]): Promise<FlashcardDeckListResponse> => {
+
+  return customFetch<FlashcardDeckListResponse>(getListFlashcardDecksUrl(bookId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFlashcardDecksQueryKey = (bookId: string,) => {
+    return [
+    `/api/books/${bookId}/study/decks`
+    ] as const;
+    }
+
+
+export const getListFlashcardDecksQueryOptions = <TData = Awaited<ReturnType<typeof listFlashcardDecks>>, TError = ErrorType<ErrorResponse>>(bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFlashcardDecks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFlashcardDecksQueryKey(bookId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFlashcardDecks>>> = ({ signal }) => listFlashcardDecks(bookId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFlashcardDecks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFlashcardDecksQueryResult = NonNullable<Awaited<ReturnType<typeof listFlashcardDecks>>>
+export type ListFlashcardDecksQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List flashcard decks
+ */
+
+export function useListFlashcardDecks<TData = Awaited<ReturnType<typeof listFlashcardDecks>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFlashcardDecks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFlashcardDecksQueryOptions(bookId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateFlashcardDeckUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/decks`
+}
+
+/**
+ * Creates a new deck for studying
+ * @summary Create flashcard deck
+ */
+export const createFlashcardDeck = async (bookId: string,
+    createFlashcardDeckRequest: CreateFlashcardDeckRequest, options?: Parameters<typeof customFetch>[1]): Promise<FlashcardDeck> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FlashcardDeck>(getCreateFlashcardDeckUrl(bookId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createFlashcardDeckRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateFlashcardDeckMutationKey = () => ['createFlashcardDeck'] as const;
+
+export const getCreateFlashcardDeckMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFlashcardDeck>>, TError,CreateFlashcardDeckMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createFlashcardDeck>>, TError,CreateFlashcardDeckMutationVariables, TContext> => {
+
+const mutationKey = getCreateFlashcardDeckMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createFlashcardDeck>>, CreateFlashcardDeckMutationVariables> = (props) => {
+          const {bookId,data} = props ?? {};
+
+          return  createFlashcardDeck(bookId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateFlashcardDeckMutationResult = NonNullable<Awaited<ReturnType<typeof createFlashcardDeck>>>
+    export type CreateFlashcardDeckMutationBody = BodyType<CreateFlashcardDeckRequest>
+    export type CreateFlashcardDeckMutationError = ErrorType<ErrorResponse>
+    export type CreateFlashcardDeckMutationVariables = {bookId: string;data: BodyType<CreateFlashcardDeckRequest>}
+
+    /**
+ * @summary Create flashcard deck
+ */
+export const useCreateFlashcardDeck = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFlashcardDeck>>, TError,CreateFlashcardDeckMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createFlashcardDeck>>,
+        TError,
+        CreateFlashcardDeckMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateFlashcardDeckMutationOptions(options));
+    }
+
+export const getGetFlashcardDeckUrl = (bookId: string,
+    deckId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/decks/${deckId}`
+}
+
+/**
+ * Returns deck with card counts
+ * @summary Get flashcard deck details
+ */
+export const getFlashcardDeck = async (bookId: string,
+    deckId: string, options?: Parameters<typeof customFetch>[1]): Promise<FlashcardDeckDetail> => {
+
+  return customFetch<FlashcardDeckDetail>(getGetFlashcardDeckUrl(bookId,deckId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFlashcardDeckQueryKey = (bookId: string,
+    deckId: string,) => {
+    return [
+    `/api/books/${bookId}/study/decks/${deckId}`
+    ] as const;
+    }
+
+
+export const getGetFlashcardDeckQueryOptions = <TData = Awaited<ReturnType<typeof getFlashcardDeck>>, TError = ErrorType<ErrorResponse>>(bookId: string,
+    deckId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFlashcardDeck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFlashcardDeckQueryKey(bookId,deckId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFlashcardDeck>>> = ({ signal }) => getFlashcardDeck(bookId,deckId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined && deckId !== null && deckId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFlashcardDeck>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFlashcardDeckQueryResult = NonNullable<Awaited<ReturnType<typeof getFlashcardDeck>>>
+export type GetFlashcardDeckQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get flashcard deck details
+ */
+
+export function useGetFlashcardDeck<TData = Awaited<ReturnType<typeof getFlashcardDeck>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string,
+    deckId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFlashcardDeck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFlashcardDeckQueryOptions(bookId,deckId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateFlashcardDeckUrl = (bookId: string,
+    deckId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/decks/${deckId}`
+}
+
+/**
+ * Updates deck title
+ * @summary Update flashcard deck
+ */
+export const updateFlashcardDeck = async (bookId: string,
+    deckId: string,
+    updateFlashcardDeckRequest: UpdateFlashcardDeckRequest, options?: Parameters<typeof customFetch>[1]): Promise<FlashcardDeck> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FlashcardDeck>(getUpdateFlashcardDeckUrl(bookId,deckId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateFlashcardDeckRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateFlashcardDeckMutationKey = () => ['updateFlashcardDeck'] as const;
+
+export const getUpdateFlashcardDeckMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFlashcardDeck>>, TError,UpdateFlashcardDeckMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateFlashcardDeck>>, TError,UpdateFlashcardDeckMutationVariables, TContext> => {
+
+const mutationKey = getUpdateFlashcardDeckMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFlashcardDeck>>, UpdateFlashcardDeckMutationVariables> = (props) => {
+          const {bookId,deckId,data} = props ?? {};
+
+          return  updateFlashcardDeck(bookId,deckId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateFlashcardDeckMutationResult = NonNullable<Awaited<ReturnType<typeof updateFlashcardDeck>>>
+    export type UpdateFlashcardDeckMutationBody = BodyType<UpdateFlashcardDeckRequest>
+    export type UpdateFlashcardDeckMutationError = ErrorType<ErrorResponse>
+    export type UpdateFlashcardDeckMutationVariables = {bookId: string;deckId: string;data: BodyType<UpdateFlashcardDeckRequest>}
+
+    /**
+ * @summary Update flashcard deck
+ */
+export const useUpdateFlashcardDeck = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFlashcardDeck>>, TError,UpdateFlashcardDeckMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateFlashcardDeck>>,
+        TError,
+        UpdateFlashcardDeckMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateFlashcardDeckMutationOptions(options));
+    }
+
+export const getDeleteFlashcardDeckUrl = (bookId: string,
+    deckId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/decks/${deckId}`
+}
+
+/**
+ * Soft deletes a flashcard deck
+ * @summary Delete flashcard deck
+ */
+export const deleteFlashcardDeck = async (bookId: string,
+    deckId: string, options?: Parameters<typeof customFetch>[1]): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteFlashcardDeckUrl(bookId,deckId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteFlashcardDeckMutationKey = () => ['deleteFlashcardDeck'] as const;
+
+export const getDeleteFlashcardDeckMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFlashcardDeck>>, TError,DeleteFlashcardDeckMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteFlashcardDeck>>, TError,DeleteFlashcardDeckMutationVariables, TContext> => {
+
+const mutationKey = getDeleteFlashcardDeckMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteFlashcardDeck>>, DeleteFlashcardDeckMutationVariables> = (props) => {
+          const {bookId,deckId} = props ?? {};
+
+          return  deleteFlashcardDeck(bookId,deckId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteFlashcardDeckMutationResult = NonNullable<Awaited<ReturnType<typeof deleteFlashcardDeck>>>
+
+    export type DeleteFlashcardDeckMutationError = ErrorType<ErrorResponse>
+    export type DeleteFlashcardDeckMutationVariables = {bookId: string;deckId: string}
+
+    /**
+ * @summary Delete flashcard deck
+ */
+export const useDeleteFlashcardDeck = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFlashcardDeck>>, TError,DeleteFlashcardDeckMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteFlashcardDeck>>,
+        TError,
+        DeleteFlashcardDeckMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteFlashcardDeckMutationOptions(options));
+    }
+
+export const getGenerateFlashcardsForDeckUrl = (bookId: string,
+    deckId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/decks/${deckId}/generate`
+}
+
+/**
+ * Generates grounded flashcards from the deck scope
+ * @summary Generate AI flashcards for deck
+ */
+export const generateFlashcardsForDeck = async (bookId: string,
+    deckId: string,
+    generateFlashcardsRequest?: GenerateFlashcardsRequest, options?: Parameters<typeof customFetch>[1]): Promise<FlashcardListResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FlashcardListResponse>(getGenerateFlashcardsForDeckUrl(bookId,deckId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(generateFlashcardsRequest)
+  }
+);}
+
+
+
+
+
+export const getGenerateFlashcardsForDeckMutationKey = () => ['generateFlashcardsForDeck'] as const;
+
+export const getGenerateFlashcardsForDeckMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateFlashcardsForDeck>>, TError,GenerateFlashcardsForDeckMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateFlashcardsForDeck>>, TError,GenerateFlashcardsForDeckMutationVariables, TContext> => {
+
+const mutationKey = getGenerateFlashcardsForDeckMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateFlashcardsForDeck>>, GenerateFlashcardsForDeckMutationVariables> = (props) => {
+          const {bookId,deckId,data} = props ?? {};
+
+          return  generateFlashcardsForDeck(bookId,deckId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateFlashcardsForDeckMutationResult = NonNullable<Awaited<ReturnType<typeof generateFlashcardsForDeck>>>
+    export type GenerateFlashcardsForDeckMutationBody = BodyType<GenerateFlashcardsRequest> | undefined
+    export type GenerateFlashcardsForDeckMutationError = ErrorType<ErrorResponse>
+    export type GenerateFlashcardsForDeckMutationVariables = {bookId: string;deckId: string;data?: BodyType<GenerateFlashcardsRequest>}
+
+    /**
+ * @summary Generate AI flashcards for deck
+ */
+export const useGenerateFlashcardsForDeck = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateFlashcardsForDeck>>, TError,GenerateFlashcardsForDeckMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateFlashcardsForDeck>>,
+        TError,
+        GenerateFlashcardsForDeckMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGenerateFlashcardsForDeckMutationOptions(options));
+    }
+
+export const getListDeckCardsUrl = (bookId: string,
+    deckId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/decks/${deckId}/cards`
+}
+
+/**
+ * Returns flashcards belonging to the deck
+ * @summary List cards in a deck
+ */
+export const listDeckCards = async (bookId: string,
+    deckId: string, options?: Parameters<typeof customFetch>[1]): Promise<FlashcardListResponse> => {
+
+  return customFetch<FlashcardListResponse>(getListDeckCardsUrl(bookId,deckId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDeckCardsQueryKey = (bookId: string,
+    deckId: string,) => {
+    return [
+    `/api/books/${bookId}/study/decks/${deckId}/cards`
+    ] as const;
+    }
+
+
+export const getListDeckCardsQueryOptions = <TData = Awaited<ReturnType<typeof listDeckCards>>, TError = ErrorType<ErrorResponse>>(bookId: string,
+    deckId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDeckCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDeckCardsQueryKey(bookId,deckId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDeckCards>>> = ({ signal }) => listDeckCards(bookId,deckId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined && deckId !== null && deckId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDeckCards>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDeckCardsQueryResult = NonNullable<Awaited<ReturnType<typeof listDeckCards>>>
+export type ListDeckCardsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List cards in a deck
+ */
+
+export function useListDeckCards<TData = Awaited<ReturnType<typeof listDeckCards>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string,
+    deckId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDeckCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDeckCardsQueryOptions(bookId,deckId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateManualFlashcardUrl = (bookId: string,
+    deckId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/decks/${deckId}/cards`
+}
+
+/**
+ * Adds a manual card to the deck
+ * @summary Create manual flashcard
+ */
+export const createManualFlashcard = async (bookId: string,
+    deckId: string,
+    createFlashcardRequest: CreateFlashcardRequest, options?: Parameters<typeof customFetch>[1]): Promise<Flashcard> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Flashcard>(getCreateManualFlashcardUrl(bookId,deckId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createFlashcardRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateManualFlashcardMutationKey = () => ['createManualFlashcard'] as const;
+
+export const getCreateManualFlashcardMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createManualFlashcard>>, TError,CreateManualFlashcardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createManualFlashcard>>, TError,CreateManualFlashcardMutationVariables, TContext> => {
+
+const mutationKey = getCreateManualFlashcardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createManualFlashcard>>, CreateManualFlashcardMutationVariables> = (props) => {
+          const {bookId,deckId,data} = props ?? {};
+
+          return  createManualFlashcard(bookId,deckId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateManualFlashcardMutationResult = NonNullable<Awaited<ReturnType<typeof createManualFlashcard>>>
+    export type CreateManualFlashcardMutationBody = BodyType<CreateFlashcardRequest>
+    export type CreateManualFlashcardMutationError = ErrorType<ErrorResponse>
+    export type CreateManualFlashcardMutationVariables = {bookId: string;deckId: string;data: BodyType<CreateFlashcardRequest>}
+
+    /**
+ * @summary Create manual flashcard
+ */
+export const useCreateManualFlashcard = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createManualFlashcard>>, TError,CreateManualFlashcardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createManualFlashcard>>,
+        TError,
+        CreateManualFlashcardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateManualFlashcardMutationOptions(options));
+    }
+
+export const getUpdateFlashcardUrl = (bookId: string,
+    cardId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/cards/${cardId}`
+}
+
+/**
+ * Edits front, back, explanation or difficulty of a flashcard
+ * @summary Update flashcard
+ */
+export const updateFlashcard = async (bookId: string,
+    cardId: string,
+    updateFlashcardRequest: UpdateFlashcardRequest, options?: Parameters<typeof customFetch>[1]): Promise<Flashcard> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Flashcard>(getUpdateFlashcardUrl(bookId,cardId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateFlashcardRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateFlashcardMutationKey = () => ['updateFlashcard'] as const;
+
+export const getUpdateFlashcardMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFlashcard>>, TError,UpdateFlashcardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateFlashcard>>, TError,UpdateFlashcardMutationVariables, TContext> => {
+
+const mutationKey = getUpdateFlashcardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFlashcard>>, UpdateFlashcardMutationVariables> = (props) => {
+          const {bookId,cardId,data} = props ?? {};
+
+          return  updateFlashcard(bookId,cardId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateFlashcardMutationResult = NonNullable<Awaited<ReturnType<typeof updateFlashcard>>>
+    export type UpdateFlashcardMutationBody = BodyType<UpdateFlashcardRequest>
+    export type UpdateFlashcardMutationError = ErrorType<ErrorResponse>
+    export type UpdateFlashcardMutationVariables = {bookId: string;cardId: string;data: BodyType<UpdateFlashcardRequest>}
+
+    /**
+ * @summary Update flashcard
+ */
+export const useUpdateFlashcard = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFlashcard>>, TError,UpdateFlashcardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateFlashcard>>,
+        TError,
+        UpdateFlashcardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateFlashcardMutationOptions(options));
+    }
+
+export const getDeleteFlashcardUrl = (bookId: string,
+    cardId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/cards/${cardId}`
+}
+
+/**
+ * Soft deletes a flashcard
+ * @summary Delete flashcard
+ */
+export const deleteFlashcard = async (bookId: string,
+    cardId: string, options?: Parameters<typeof customFetch>[1]): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteFlashcardUrl(bookId,cardId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteFlashcardMutationKey = () => ['deleteFlashcard'] as const;
+
+export const getDeleteFlashcardMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFlashcard>>, TError,DeleteFlashcardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteFlashcard>>, TError,DeleteFlashcardMutationVariables, TContext> => {
+
+const mutationKey = getDeleteFlashcardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteFlashcard>>, DeleteFlashcardMutationVariables> = (props) => {
+          const {bookId,cardId} = props ?? {};
+
+          return  deleteFlashcard(bookId,cardId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteFlashcardMutationResult = NonNullable<Awaited<ReturnType<typeof deleteFlashcard>>>
+
+    export type DeleteFlashcardMutationError = ErrorType<ErrorResponse>
+    export type DeleteFlashcardMutationVariables = {bookId: string;cardId: string}
+
+    /**
+ * @summary Delete flashcard
+ */
+export const useDeleteFlashcard = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFlashcard>>, TError,DeleteFlashcardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteFlashcard>>,
+        TError,
+        DeleteFlashcardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteFlashcardMutationOptions(options));
+    }
+
+export const getGetReviewQueueUrl = (bookId: string,
+    params?: GetReviewQueueParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/books/${bookId}/study/review?${stringifiedParams}` : `/api/books/${bookId}/study/review`
+}
+
+/**
+ * Returns cards that are due for review (or all cards if requested)
+ * @summary Get review queue
+ */
+export const getReviewQueue = async (bookId: string,
+    params?: GetReviewQueueParams, options?: Parameters<typeof customFetch>[1]): Promise<FlashcardReviewQueueResponse> => {
+
+  return customFetch<FlashcardReviewQueueResponse>(getGetReviewQueueUrl(bookId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReviewQueueQueryKey = (bookId: string,
+    params?: GetReviewQueueParams,) => {
+    return [
+    `/api/books/${bookId}/study/review`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetReviewQueueQueryOptions = <TData = Awaited<ReturnType<typeof getReviewQueue>>, TError = ErrorType<ErrorResponse>>(bookId: string,
+    params?: GetReviewQueueParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReviewQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReviewQueueQueryKey(bookId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReviewQueue>>> = ({ signal }) => getReviewQueue(bookId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReviewQueue>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetReviewQueueQueryResult = NonNullable<Awaited<ReturnType<typeof getReviewQueue>>>
+export type GetReviewQueueQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get review queue
+ */
+
+export function useGetReviewQueue<TData = Awaited<ReturnType<typeof getReviewQueue>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string,
+    params?: GetReviewQueueParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReviewQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetReviewQueueQueryOptions(bookId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitCardReviewUrl = (bookId: string,
+    cardId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/cards/${cardId}/review`
+}
+
+/**
+ * Records user review rating and computes next repetition schedule
+ * @summary Submit flashcard review rating
+ */
+export const submitCardReview = async (bookId: string,
+    cardId: string,
+    submitCardReviewRequest: SubmitCardReviewRequest, options?: Parameters<typeof customFetch>[1]): Promise<FlashcardReviewResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FlashcardReviewResult>(getSubmitCardReviewUrl(bookId,cardId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(submitCardReviewRequest)
+  }
+);}
+
+
+
+
+
+export const getSubmitCardReviewMutationKey = () => ['submitCardReview'] as const;
+
+export const getSubmitCardReviewMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitCardReview>>, TError,SubmitCardReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitCardReview>>, TError,SubmitCardReviewMutationVariables, TContext> => {
+
+const mutationKey = getSubmitCardReviewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitCardReview>>, SubmitCardReviewMutationVariables> = (props) => {
+          const {bookId,cardId,data} = props ?? {};
+
+          return  submitCardReview(bookId,cardId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitCardReviewMutationResult = NonNullable<Awaited<ReturnType<typeof submitCardReview>>>
+    export type SubmitCardReviewMutationBody = BodyType<SubmitCardReviewRequest>
+    export type SubmitCardReviewMutationError = ErrorType<ErrorResponse>
+    export type SubmitCardReviewMutationVariables = {bookId: string;cardId: string;data: BodyType<SubmitCardReviewRequest>}
+
+    /**
+ * @summary Submit flashcard review rating
+ */
+export const useSubmitCardReview = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitCardReview>>, TError,SubmitCardReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitCardReview>>,
+        TError,
+        SubmitCardReviewMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitCardReviewMutationOptions(options));
+    }
+
+export const getStartStudySessionUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/sessions`
+}
+
+/**
+ * Begins a new review session
+ * @summary Start a study session
+ */
+export const startStudySession = async (bookId: string,
+    startStudySessionRequest?: StartStudySessionRequest, options?: Parameters<typeof customFetch>[1]): Promise<StudySession> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StudySession>(getStartStudySessionUrl(bookId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(startStudySessionRequest)
+  }
+);}
+
+
+
+
+
+export const getStartStudySessionMutationKey = () => ['startStudySession'] as const;
+
+export const getStartStudySessionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startStudySession>>, TError,StartStudySessionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startStudySession>>, TError,StartStudySessionMutationVariables, TContext> => {
+
+const mutationKey = getStartStudySessionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startStudySession>>, StartStudySessionMutationVariables> = (props) => {
+          const {bookId,data} = props ?? {};
+
+          return  startStudySession(bookId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartStudySessionMutationResult = NonNullable<Awaited<ReturnType<typeof startStudySession>>>
+    export type StartStudySessionMutationBody = BodyType<StartStudySessionRequest> | undefined
+    export type StartStudySessionMutationError = ErrorType<ErrorResponse>
+    export type StartStudySessionMutationVariables = {bookId: string;data?: BodyType<StartStudySessionRequest>}
+
+    /**
+ * @summary Start a study session
+ */
+export const useStartStudySession = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startStudySession>>, TError,StartStudySessionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startStudySession>>,
+        TError,
+        StartStudySessionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartStudySessionMutationOptions(options));
+    }
+
+export const getCompleteStudySessionUrl = (bookId: string,
+    sessionId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/study/sessions/${sessionId}/complete`
+}
+
+/**
+ * Finalizes counters and marks session completed
+ * @summary Complete study session
+ */
+export const completeStudySession = async (bookId: string,
+    sessionId: string,
+    completeStudySessionRequest: CompleteStudySessionRequest, options?: Parameters<typeof customFetch>[1]): Promise<StudySession> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StudySession>(getCompleteStudySessionUrl(bookId,sessionId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(completeStudySessionRequest)
+  }
+);}
+
+
+
+
+
+export const getCompleteStudySessionMutationKey = () => ['completeStudySession'] as const;
+
+export const getCompleteStudySessionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeStudySession>>, TError,CompleteStudySessionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeStudySession>>, TError,CompleteStudySessionMutationVariables, TContext> => {
+
+const mutationKey = getCompleteStudySessionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeStudySession>>, CompleteStudySessionMutationVariables> = (props) => {
+          const {bookId,sessionId,data} = props ?? {};
+
+          return  completeStudySession(bookId,sessionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteStudySessionMutationResult = NonNullable<Awaited<ReturnType<typeof completeStudySession>>>
+    export type CompleteStudySessionMutationBody = BodyType<CompleteStudySessionRequest>
+    export type CompleteStudySessionMutationError = ErrorType<ErrorResponse>
+    export type CompleteStudySessionMutationVariables = {bookId: string;sessionId: string;data: BodyType<CompleteStudySessionRequest>}
+
+    /**
+ * @summary Complete study session
+ */
+export const useCompleteStudySession = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeStudySession>>, TError,CompleteStudySessionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeStudySession>>,
+        TError,
+        CompleteStudySessionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCompleteStudySessionMutationOptions(options));
     }
 

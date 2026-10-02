@@ -1370,3 +1370,735 @@ export const DeleteAiConversationResponse = zod.object({
 })
 
 
+/**
+ * Returns overall study metrics, cards due today and recent sessions
+ * @summary Get study overview
+ */
+export const GetStudyOverviewResponse = zod.object({
+  "dueCardsToday": zod.number().int(),
+  "recentSessions": zod.array(zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "deckId": zod.string().nullish(),
+  "sessionType": zod.string(),
+  "startedAt": zod.string(),
+  "completedAt": zod.string().nullish(),
+  "cardsSeen": zod.number().int(),
+  "cardsAgain": zod.number().int(),
+  "cardsHard": zod.number().int(),
+  "cardsGood": zod.number().int(),
+  "cardsEasy": zod.number().int()
+})),
+  "totalDecks": zod.number().int(),
+  "totalCards": zod.number().int()
+})
+
+
+/**
+ * Returns all study summaries generated for this book
+ * @summary List summaries for a book
+ */
+export const ListBookSummariesParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const ListBookSummariesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "scopeType": zod.string(),
+  "scopeData": zod.object({
+
+}).passthrough(),
+  "summaryType": zod.enum(['brief', 'standard', 'deep']),
+  "title": zod.string(),
+  "content": zod.string(),
+  "language": zod.string(),
+  "isPersonal": zod.boolean(),
+  "includeHighlights": zod.boolean().optional(),
+  "includeNotes": zod.boolean().optional(),
+  "generationVersion": zod.number().int().optional(),
+  "promptVersion": zod.string().optional(),
+  "sourceHash": zod.string(),
+  "status": zod.enum(['ready', 'outdated', 'failed']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))
+})
+
+
+/**
+ * Generates a brief, standard, or deep summary with strict source grounding
+ * @summary Generate grounded study summary
+ */
+export const GenerateStudySummaryParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const generateStudySummaryBodySummaryTypeDefault = `standard`;
+export const generateStudySummaryBodyIncludeHighlightsDefault = false;
+export const generateStudySummaryBodyIncludeNotesDefault = false;
+export const generateStudySummaryBodyLanguageDefault = `es-MX`;
+
+export const GenerateStudySummaryBody = zod.object({
+  "scope": zod.object({
+  "type": zod.enum(['page', 'page_range', 'separator', 'book', 'highlights']),
+  "pageNumber": zod.number().int().nullish(),
+  "startPage": zod.number().int().nullish(),
+  "endPage": zod.number().int().nullish(),
+  "separatorId": zod.string().nullish(),
+  "highlightIds": zod.array(zod.string()).nullish()
+}),
+  "summaryType": zod.enum(['brief', 'standard', 'deep']).default(generateStudySummaryBodySummaryTypeDefault),
+  "includeHighlights": zod.boolean().default(generateStudySummaryBodyIncludeHighlightsDefault),
+  "includeNotes": zod.boolean().default(generateStudySummaryBodyIncludeNotesDefault),
+  "language": zod.string().default(generateStudySummaryBodyLanguageDefault)
+})
+
+export const GenerateStudySummaryResponse = zod.object({
+  "summary": zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "scopeType": zod.string(),
+  "scopeData": zod.object({
+
+}).passthrough(),
+  "summaryType": zod.enum(['brief', 'standard', 'deep']),
+  "title": zod.string(),
+  "content": zod.string(),
+  "language": zod.string(),
+  "isPersonal": zod.boolean(),
+  "includeHighlights": zod.boolean().optional(),
+  "includeNotes": zod.boolean().optional(),
+  "generationVersion": zod.number().int().optional(),
+  "promptVersion": zod.string().optional(),
+  "sourceHash": zod.string(),
+  "status": zod.enum(['ready', 'outdated', 'failed']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}),
+  "sources": zod.array(zod.object({
+  "id": zod.string(),
+  "summaryId": zod.string(),
+  "chunkId": zod.string().nullish(),
+  "bookId": zod.string(),
+  "pageNumber": zod.number().int(),
+  "quote": zod.string(),
+  "startBlockId": zod.string().nullish(),
+  "startOffset": zod.number().int().nullish(),
+  "endBlockId": zod.string().nullish(),
+  "endOffset": zod.number().int().nullish(),
+  "rank": zod.number().int()
+}))
+})
+
+
+/**
+ * Returns summary and its structured sources
+ * @summary Get study summary details
+ */
+export const GetStudySummaryParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "summaryId": zod.coerce.string()
+})
+
+export const GetStudySummaryResponse = zod.object({
+  "summary": zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "scopeType": zod.string(),
+  "scopeData": zod.object({
+
+}).passthrough(),
+  "summaryType": zod.enum(['brief', 'standard', 'deep']),
+  "title": zod.string(),
+  "content": zod.string(),
+  "language": zod.string(),
+  "isPersonal": zod.boolean(),
+  "includeHighlights": zod.boolean().optional(),
+  "includeNotes": zod.boolean().optional(),
+  "generationVersion": zod.number().int().optional(),
+  "promptVersion": zod.string().optional(),
+  "sourceHash": zod.string(),
+  "status": zod.enum(['ready', 'outdated', 'failed']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}),
+  "sources": zod.array(zod.object({
+  "id": zod.string(),
+  "summaryId": zod.string(),
+  "chunkId": zod.string().nullish(),
+  "bookId": zod.string(),
+  "pageNumber": zod.number().int(),
+  "quote": zod.string(),
+  "startBlockId": zod.string().nullish(),
+  "startOffset": zod.number().int().nullish(),
+  "endBlockId": zod.string().nullish(),
+  "endOffset": zod.number().int().nullish(),
+  "rank": zod.number().int()
+}))
+})
+
+
+/**
+ * Soft deletes a study summary
+ * @summary Delete study summary
+ */
+export const DeleteStudySummaryParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "summaryId": zod.coerce.string()
+})
+
+export const DeleteStudySummaryResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * Returns extracted study concepts
+ * @summary List concepts for a book
+ */
+export const ListBookConceptsParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const ListBookConceptsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "concept": zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "scopeType": zod.string(),
+  "scopeData": zod.object({
+
+}).passthrough().optional(),
+  "term": zod.string(),
+  "definition": zod.string(),
+  "simpleExplanation": zod.string().nullish(),
+  "importance": zod.enum(['essential', 'high', 'medium']),
+  "sourceHash": zod.string(),
+  "status": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}),
+  "sources": zod.array(zod.object({
+  "id": zod.string(),
+  "conceptId": zod.string(),
+  "chunkId": zod.string().nullish(),
+  "bookId": zod.string(),
+  "pageNumber": zod.number().int(),
+  "quote": zod.string(),
+  "rank": zod.number().int()
+}))
+}))
+})
+
+
+/**
+ * Extracts key ideas and terms grounded in the chosen scope
+ * @summary Extract key concepts
+ */
+export const GenerateBookConceptsParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const generateBookConceptsBodyCountDefault = 10;
+
+export const GenerateBookConceptsBody = zod.object({
+  "scope": zod.object({
+  "type": zod.enum(['page', 'page_range', 'separator', 'book', 'highlights']),
+  "pageNumber": zod.number().int().nullish(),
+  "startPage": zod.number().int().nullish(),
+  "endPage": zod.number().int().nullish(),
+  "separatorId": zod.string().nullish(),
+  "highlightIds": zod.array(zod.string()).nullish()
+}),
+  "count": zod.number().int().default(generateBookConceptsBodyCountDefault)
+})
+
+export const GenerateBookConceptsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "concept": zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "scopeType": zod.string(),
+  "scopeData": zod.object({
+
+}).passthrough().optional(),
+  "term": zod.string(),
+  "definition": zod.string(),
+  "simpleExplanation": zod.string().nullish(),
+  "importance": zod.enum(['essential', 'high', 'medium']),
+  "sourceHash": zod.string(),
+  "status": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}),
+  "sources": zod.array(zod.object({
+  "id": zod.string(),
+  "conceptId": zod.string(),
+  "chunkId": zod.string().nullish(),
+  "bookId": zod.string(),
+  "pageNumber": zod.number().int(),
+  "quote": zod.string(),
+  "rank": zod.number().int()
+}))
+}))
+})
+
+
+/**
+ * Returns flashcard decks for a book
+ * @summary List flashcard decks
+ */
+export const ListFlashcardDecksParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const ListFlashcardDecksResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "title": zod.string(),
+  "scopeType": zod.string(),
+  "scopeData": zod.object({
+
+}).passthrough(),
+  "generationVersion": zod.number().int(),
+  "cardsCount": zod.number().int().nullish(),
+  "dueCount": zod.number().int().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))
+})
+
+
+/**
+ * Creates a new deck for studying
+ * @summary Create flashcard deck
+ */
+export const CreateFlashcardDeckParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const CreateFlashcardDeckBody = zod.object({
+  "title": zod.string(),
+  "scope": zod.object({
+  "type": zod.enum(['page', 'page_range', 'separator', 'book', 'highlights']),
+  "pageNumber": zod.number().int().nullish(),
+  "startPage": zod.number().int().nullish(),
+  "endPage": zod.number().int().nullish(),
+  "separatorId": zod.string().nullish(),
+  "highlightIds": zod.array(zod.string()).nullish()
+})
+})
+
+export const CreateFlashcardDeckResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "title": zod.string(),
+  "scopeType": zod.string(),
+  "scopeData": zod.object({
+
+}).passthrough(),
+  "generationVersion": zod.number().int(),
+  "cardsCount": zod.number().int().nullish(),
+  "dueCount": zod.number().int().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * Returns deck with card counts
+ * @summary Get flashcard deck details
+ */
+export const GetFlashcardDeckParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "deckId": zod.coerce.string()
+})
+
+export const GetFlashcardDeckResponse = zod.object({
+  "deck": zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "title": zod.string(),
+  "scopeType": zod.string(),
+  "scopeData": zod.object({
+
+}).passthrough(),
+  "generationVersion": zod.number().int(),
+  "cardsCount": zod.number().int().nullish(),
+  "dueCount": zod.number().int().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}),
+  "cardsCount": zod.number().int(),
+  "dueCount": zod.number().int()
+})
+
+
+/**
+ * Updates deck title
+ * @summary Update flashcard deck
+ */
+export const UpdateFlashcardDeckParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "deckId": zod.coerce.string()
+})
+
+export const UpdateFlashcardDeckBody = zod.object({
+  "title": zod.string().optional()
+})
+
+export const UpdateFlashcardDeckResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "title": zod.string(),
+  "scopeType": zod.string(),
+  "scopeData": zod.object({
+
+}).passthrough(),
+  "generationVersion": zod.number().int(),
+  "cardsCount": zod.number().int().nullish(),
+  "dueCount": zod.number().int().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * Soft deletes a flashcard deck
+ * @summary Delete flashcard deck
+ */
+export const DeleteFlashcardDeckParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "deckId": zod.coerce.string()
+})
+
+export const DeleteFlashcardDeckResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * Generates grounded flashcards from the deck scope
+ * @summary Generate AI flashcards for deck
+ */
+export const GenerateFlashcardsForDeckParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "deckId": zod.coerce.string()
+})
+
+export const generateFlashcardsForDeckBodyCountDefault = 10;
+
+export const GenerateFlashcardsForDeckBody = zod.object({
+  "count": zod.union([zod.literal(5),zod.literal(10),zod.literal(20)]).default(generateFlashcardsForDeckBodyCountDefault),
+  "cardTypes": zod.array(zod.enum(['concept', 'question', 'cloze'])).optional()
+})
+
+export const GenerateFlashcardsForDeckResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "deckId": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "cardType": zod.enum(['concept', 'question', 'cloze']),
+  "origin": zod.enum(['ai', 'manual']),
+  "front": zod.string(),
+  "back": zod.string(),
+  "explanation": zod.string().nullish(),
+  "sourcePage": zod.number().int().nullish(),
+  "sourceAnchorData": zod.object({
+
+}).passthrough().nullish(),
+  "contentHash": zod.string(),
+  "sourceHash": zod.string().nullish(),
+  "difficulty": zod.string(),
+  "status": zod.enum(['ready', 'outdated']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))
+})
+
+
+/**
+ * Returns flashcards belonging to the deck
+ * @summary List cards in a deck
+ */
+export const ListDeckCardsParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "deckId": zod.coerce.string()
+})
+
+export const ListDeckCardsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "deckId": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "cardType": zod.enum(['concept', 'question', 'cloze']),
+  "origin": zod.enum(['ai', 'manual']),
+  "front": zod.string(),
+  "back": zod.string(),
+  "explanation": zod.string().nullish(),
+  "sourcePage": zod.number().int().nullish(),
+  "sourceAnchorData": zod.object({
+
+}).passthrough().nullish(),
+  "contentHash": zod.string(),
+  "sourceHash": zod.string().nullish(),
+  "difficulty": zod.string(),
+  "status": zod.enum(['ready', 'outdated']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))
+})
+
+
+/**
+ * Adds a manual card to the deck
+ * @summary Create manual flashcard
+ */
+export const CreateManualFlashcardParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "deckId": zod.coerce.string()
+})
+
+export const createManualFlashcardBodyCardTypeDefault = `question`;
+
+export const CreateManualFlashcardBody = zod.object({
+  "cardType": zod.enum(['concept', 'question', 'cloze']).default(createManualFlashcardBodyCardTypeDefault),
+  "front": zod.string(),
+  "back": zod.string(),
+  "explanation": zod.string().nullish(),
+  "sourcePage": zod.number().int().nullish()
+})
+
+export const CreateManualFlashcardResponse = zod.object({
+  "id": zod.string(),
+  "deckId": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "cardType": zod.enum(['concept', 'question', 'cloze']),
+  "origin": zod.enum(['ai', 'manual']),
+  "front": zod.string(),
+  "back": zod.string(),
+  "explanation": zod.string().nullish(),
+  "sourcePage": zod.number().int().nullish(),
+  "sourceAnchorData": zod.object({
+
+}).passthrough().nullish(),
+  "contentHash": zod.string(),
+  "sourceHash": zod.string().nullish(),
+  "difficulty": zod.string(),
+  "status": zod.enum(['ready', 'outdated']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * Edits front, back, explanation or difficulty of a flashcard
+ * @summary Update flashcard
+ */
+export const UpdateFlashcardParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "cardId": zod.coerce.string()
+})
+
+export const UpdateFlashcardBody = zod.object({
+  "front": zod.string().optional(),
+  "back": zod.string().optional(),
+  "explanation": zod.string().nullish(),
+  "difficulty": zod.string().optional()
+})
+
+export const UpdateFlashcardResponse = zod.object({
+  "id": zod.string(),
+  "deckId": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "cardType": zod.enum(['concept', 'question', 'cloze']),
+  "origin": zod.enum(['ai', 'manual']),
+  "front": zod.string(),
+  "back": zod.string(),
+  "explanation": zod.string().nullish(),
+  "sourcePage": zod.number().int().nullish(),
+  "sourceAnchorData": zod.object({
+
+}).passthrough().nullish(),
+  "contentHash": zod.string(),
+  "sourceHash": zod.string().nullish(),
+  "difficulty": zod.string(),
+  "status": zod.enum(['ready', 'outdated']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * Soft deletes a flashcard
+ * @summary Delete flashcard
+ */
+export const DeleteFlashcardParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "cardId": zod.coerce.string()
+})
+
+export const DeleteFlashcardResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * Returns cards that are due for review (or all cards if requested)
+ * @summary Get review queue
+ */
+export const GetReviewQueueParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const GetReviewQueueQueryParams = zod.object({
+  "deckId": zod.coerce.string().optional(),
+  "all": zod.coerce.boolean().optional()
+})
+
+export const GetReviewQueueResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "deckId": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "cardType": zod.enum(['concept', 'question', 'cloze']),
+  "origin": zod.enum(['ai', 'manual']),
+  "front": zod.string(),
+  "back": zod.string(),
+  "explanation": zod.string().nullish(),
+  "sourcePage": zod.number().int().nullish(),
+  "sourceAnchorData": zod.object({
+
+}).passthrough().nullish(),
+  "contentHash": zod.string(),
+  "sourceHash": zod.string().nullish(),
+  "difficulty": zod.string(),
+  "status": zod.enum(['ready', 'outdated']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})),
+  "dueCount": zod.number().int(),
+  "totalCards": zod.number().int()
+})
+
+
+/**
+ * Records user review rating and computes next repetition schedule
+ * @summary Submit flashcard review rating
+ */
+export const SubmitCardReviewParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "cardId": zod.coerce.string()
+})
+
+export const SubmitCardReviewBody = zod.object({
+  "rating": zod.enum(['again', 'hard', 'good', 'easy'])
+})
+
+export const SubmitCardReviewResponse = zod.object({
+  "review": zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "flashcardId": zod.string(),
+  "rating": zod.enum(['again', 'hard', 'good', 'easy']),
+  "reviewedAt": zod.string(),
+  "previousIntervalDays": zod.number().int(),
+  "nextIntervalDays": zod.number().int(),
+  "dueAt": zod.string()
+}),
+  "nextDueAt": zod.string(),
+  "nextIntervalDays": zod.number().int()
+})
+
+
+/**
+ * Begins a new review session
+ * @summary Start a study session
+ */
+export const StartStudySessionParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const startStudySessionBodySessionTypeDefault = `flashcard_review`;
+
+export const StartStudySessionBody = zod.object({
+  "deckId": zod.string().nullish(),
+  "sessionType": zod.string().default(startStudySessionBodySessionTypeDefault)
+})
+
+export const StartStudySessionResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "deckId": zod.string().nullish(),
+  "sessionType": zod.string(),
+  "startedAt": zod.string(),
+  "completedAt": zod.string().nullish(),
+  "cardsSeen": zod.number().int(),
+  "cardsAgain": zod.number().int(),
+  "cardsHard": zod.number().int(),
+  "cardsGood": zod.number().int(),
+  "cardsEasy": zod.number().int()
+})
+
+
+/**
+ * Finalizes counters and marks session completed
+ * @summary Complete study session
+ */
+export const CompleteStudySessionParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "sessionId": zod.coerce.string()
+})
+
+export const completeStudySessionBodyCardsSeenDefault = 0;
+export const completeStudySessionBodyCardsAgainDefault = 0;
+export const completeStudySessionBodyCardsHardDefault = 0;
+export const completeStudySessionBodyCardsGoodDefault = 0;
+export const completeStudySessionBodyCardsEasyDefault = 0;
+
+export const CompleteStudySessionBody = zod.object({
+  "cardsSeen": zod.number().int().default(completeStudySessionBodyCardsSeenDefault),
+  "cardsAgain": zod.number().int().default(completeStudySessionBodyCardsAgainDefault),
+  "cardsHard": zod.number().int().default(completeStudySessionBodyCardsHardDefault),
+  "cardsGood": zod.number().int().default(completeStudySessionBodyCardsGoodDefault),
+  "cardsEasy": zod.number().int().default(completeStudySessionBodyCardsEasyDefault)
+})
+
+export const CompleteStudySessionResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "deckId": zod.string().nullish(),
+  "sessionType": zod.string(),
+  "startedAt": zod.string(),
+  "completedAt": zod.string().nullish(),
+  "cardsSeen": zod.number().int(),
+  "cardsAgain": zod.number().int(),
+  "cardsHard": zod.number().int(),
+  "cardsGood": zod.number().int(),
+  "cardsEasy": zod.number().int()
+})
+
+

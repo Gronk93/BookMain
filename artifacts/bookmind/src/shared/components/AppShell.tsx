@@ -74,6 +74,18 @@ export function AppShell({ children, onToggleTheme, isDark }: AppShellProps) {
           </Link>
 
           <Link
+            href="/study"
+            className={`rounded-full px-4 py-2 text-sm transition ${
+              location === "/study" || location.startsWith("/study/")
+                ? "bg-secondary font-medium text-foreground"
+                : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
+            }`}
+            onClick={() => setMenuOpen(false)}
+          >
+            {tc("nav.study", { defaultValue: "Estudio" })}
+          </Link>
+
+          <Link
             href="/settings"
             className={`rounded-full px-4 py-2 text-sm transition ${
               location === "/settings"

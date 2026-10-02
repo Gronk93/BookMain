@@ -7,6 +7,7 @@ import highlightsRouter from "./highlights";
 import separatorsRouter from "./separators";
 import notesRouter from "./notes";
 import aiRouter from "./ai";
+import studyRouter from "./study";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,7 @@ router.use(highlightsRouter);
 router.use(separatorsRouter);
 router.use(notesRouter);
 router.use(aiRouter);
+router.use(studyRouter);
+
 
 export default router;

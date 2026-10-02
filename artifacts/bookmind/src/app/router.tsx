@@ -8,6 +8,7 @@ import { NotesPage } from "@/features/notes/pages/NotesPage";
 import { LoginForm } from "@/features/auth/components/LoginForm";
 import { RegisterForm } from "@/features/auth/components/RegisterForm";
 import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
+import { StudyHomePage, BookStudyPage } from "@/features/study";
 import NotFound from "@/pages/not-found";
 import { ROUTES } from "./routes";
 
@@ -43,6 +44,20 @@ export function AppRouter() {
           {() => (
             <ProtectedRoute>
               <NotesPage />
+            </ProtectedRoute>
+          )}
+        </Route>
+        <Route path={ROUTES.STUDY}>
+          {() => (
+            <ProtectedRoute>
+              <StudyHomePage />
+            </ProtectedRoute>
+          )}
+        </Route>
+        <Route path={ROUTES.STUDY_BOOK}>
+          {() => (
+            <ProtectedRoute>
+              <BookStudyPage />
             </ProtectedRoute>
           )}
         </Route>

@@ -10,6 +10,7 @@ BookMind transforms the reading experience by pairing modern, warm editorial aes
 
 - **Frontend**: React 19, Vite, TailwindCSS, Wouter, TanStack Query v5, i18next (`es-MX` and `en-US`), Lucide Icons.
 - **Backend**: Express 5, Pino Logger, Multer, CORS, Cookie Parser, Node.js native crypto.
+- **Study Mode & Flashcards (BM-08)**: Verifiable grounded summaries (`brief`, `standard`, `deep`, and personal study summaries), key concept extraction with importance rankings, flashcard decks with AI (`concept`, `question`, `cloze`) and manual creation, deterministic spaced repetition (`Again < Hard < Good < Easy`), review sessions with persistence, stale artifact detection, and non-blocking reader operation.
 - **AI & RAG Engine (BM-07)**: Page-bounded chunking, multi-scope semantic retrieval (`selection`, `page`, `separator`, `book`), contextual dictionary (4 blocks), explain selection, conversation persistence, strict grounding & anti-hallucination verification, untrusted source prompt injection defense, and offline deterministic unit vector token embeddings with 0 external API cost.
 - **PDF Engine & Processing (BM-04/BM-05)**: `pdf-lib` document inspection, native text extraction, page classification, local OCR fallback with quality scoring, double spread layouts, and reflowable typography.
 - **Highlights & Anchoring (BM-06)**: Stable text anchoring resilient to visual reflow, 5 canonical colors & categories, anchored notes, reading separators, and global notes search.
@@ -17,7 +18,7 @@ BookMind transforms the reading experience by pairing modern, warm editorial aes
 - **Persistence**: PostgreSQL + Drizzle ORM (with in-memory fallback store for offline development and testing).
 - **Contracts**: OpenAPI 3.1 specification driving Orval code generation (`@workspace/api-client-react` & `@workspace/api-zod`).
 - **Offline & PWA**: Web App Manifest and Service Worker with stale-while-revalidate caching.
-- **CI/CD**: GitHub Actions workflow validating typecheck, builds, and 114 automated tests across 31 suites.
+- **CI/CD**: GitHub Actions workflow validating typecheck, builds, and 152 automated tests across 39 suites.
 
 ---
 
@@ -50,7 +51,7 @@ Visit [http://localhost:5173](http://localhost:5173).
 # Typecheck entire workspace
 pnpm run typecheck
 
-# Run full test suite (114 tests across 31 suites: BM-01 to BM-07)
+# Run full test suite (152 tests across 39 suites: BM-01 to BM-08)
 pnpm test
 
 # Build production bundles

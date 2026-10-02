@@ -18,6 +18,14 @@ import {
   aiMessagesTable,
   aiMessageSourcesTable,
   aiUsageTable,
+  studySummariesTable,
+  studySummarySourcesTable,
+  studyConceptsTable,
+  studyConceptSourcesTable,
+  flashcardDecksTable,
+  flashcardsTable,
+  flashcardReviewsTable,
+  studySessionsTable,
   type User,
   type UserPreferences,
   type Book,
@@ -45,8 +53,25 @@ import {
   type InsertAiMessageSource,
   type AiUsage,
   type InsertAiUsage,
+  type StudySummary,
+  type InsertStudySummary,
+  type StudySummarySource,
+  type InsertStudySummarySource,
+  type StudyConcept,
+  type InsertStudyConcept,
+  type StudyConceptSource,
+  type InsertStudyConceptSource,
+  type FlashcardDeck,
+  type InsertFlashcardDeck,
+  type Flashcard,
+  type InsertFlashcard,
+  type FlashcardReview,
+  type InsertFlashcardReview,
+  type StudySession,
+  type InsertStudySession,
 } from "@workspace/db";
-import { eq, and, desc, isNull, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, isNull, sql, inArray, lte } from "drizzle-orm";
+
 import crypto from "node:crypto";
 import { hashPassword } from "./auth";
 import { computeTextHash, resolveAnchor } from "./anchoring";
@@ -123,6 +148,14 @@ interface InMemoryStore {
   aiMessages: Map<string, AiMessage>; // key: messageId
   aiMessageSources: Map<string, AiMessageSource>; // key: sourceId
   aiUsage: Map<string, AiUsage>; // key: usageId
+  studySummaries: Map<string, StudySummary>; // key: summaryId
+  studySummarySources: Map<string, StudySummarySource>; // key: sourceId
+  studyConcepts: Map<string, StudyConcept>; // key: conceptId
+  studyConceptSources: Map<string, StudyConceptSource>; // key: sourceId
+  flashcardDecks: Map<string, FlashcardDeck>; // key: deckId
+  flashcards: Map<string, Flashcard>; // key: cardId
+  flashcardReviews: Map<string, FlashcardReview>; // key: reviewId
+  studySessions: Map<string, StudySession>; // key: sessionId
 }
 
 const memoryStore: InMemoryStore = {
@@ -143,7 +176,16 @@ const memoryStore: InMemoryStore = {
   aiMessages: new Map(),
   aiMessageSources: new Map(),
   aiUsage: new Map(),
+  studySummaries: new Map(),
+  studySummarySources: new Map(),
+  studyConcepts: new Map(),
+  studyConceptSources: new Map(),
+  flashcardDecks: new Map(),
+  flashcards: new Map(),
+  flashcardReviews: new Map(),
+  studySessions: new Map(),
 };
+
 
 // Initial sample books to seed for any user
 const SAMPLE_BOOKS = [
@@ -2198,6 +2240,32 @@ export async function getBookSeparators(
   return list.sort((a, b) => a.startPage - b.startPage);
 }
 
+export async function getSeparatorById(
+  id: string,
+  userId: string,
+): Promise<Separator | null> {
+  const db = getDb();
+  if (db && (await checkDatabaseHealth())) {
+    const [s] = await db
+      .select()
+      .from(separatorsTable)
+      .where(
+        and(
+          eq(separatorsTable.id, id),
+          eq(separatorsTable.userId, userId),
+          isNull(separatorsTable.deletedAt),
+        ),
+      )
+      .limit(1);
+    return s || null;
+  }
+
+  const s = memoryStore.separators.get(id);
+  if (!s || s.userId !== userId || s.deletedAt) return null;
+  return s;
+}
+
+
 export async function createSeparator(
   bookId: string,
   userId: string,
@@ -2973,6 +3041,991 @@ export async function getAiUsageByUser(userId: string): Promise<AiUsage[]> {
   return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
+// ============================================================================
+// BM-PRD-08: STUDY MODE REPOSITORY
+// ============================================================================
+
+// 1. Study Summaries
+export async function createStudySummary(
+  summaryData: Omit<InsertStudySummary, "id" | "createdAt" | "updatedAt"> & { id?: string },
+  sourcesData: Array<Omit<InsertStudySummarySource, "id" | "summaryId">>,
+): Promise<{ summary: StudySummary; sources: StudySummarySource[] }> {
+  const summaryId = summaryData.id || crypto.randomUUID();
+  const now = new Date();
+
+  const summaryRecord: StudySummary = {
+    id: summaryId,
+    userId: summaryData.userId,
+    bookId: summaryData.bookId,
+    scopeType: summaryData.scopeType,
+    scopeData: summaryData.scopeData,
+    summaryType: summaryData.summaryType,
+    title: summaryData.title,
+    content: summaryData.content,
+    language: summaryData.language || "es-MX",
+    isPersonal: summaryData.isPersonal ?? false,
+    includeHighlights: summaryData.includeHighlights ?? false,
+    includeNotes: summaryData.includeNotes ?? false,
+    generationVersion: summaryData.generationVersion ?? 1,
+    promptVersion: summaryData.promptVersion || "1.0",
+    sourceHash: summaryData.sourceHash,
+    status: summaryData.status || "ready",
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  };
+
+  const sourcesRecords: StudySummarySource[] = sourcesData.map((src, index) => ({
+    id: crypto.randomUUID(),
+    summaryId,
+    chunkId: src.chunkId || null,
+    bookId: summaryData.bookId,
+    pageNumber: src.pageNumber,
+    quote: src.quote,
+    startBlockId: src.startBlockId || null,
+    startOffset: src.startOffset ?? null,
+    endBlockId: src.endBlockId || null,
+    endOffset: src.endOffset ?? null,
+    rank: src.rank ?? index + 1,
+  }));
+
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      await activeDb.insert(studySummariesTable).values(summaryRecord);
+      if (sourcesRecords.length > 0) {
+        await activeDb.insert(studySummarySourcesTable).values(sourcesRecords);
+      }
+      return { summary: summaryRecord, sources: sourcesRecords };
+    } catch {
+      // Fall through to memoryStore
+    }
+  }
+
+  memoryStore.studySummaries.set(summaryId, summaryRecord);
+  for (const s of sourcesRecords) {
+    memoryStore.studySummarySources.set(s.id, s);
+  }
+
+  return { summary: summaryRecord, sources: sourcesRecords };
+}
+
+export async function findStudySummaryById(
+  summaryId: string,
+  userId: string,
+): Promise<{ summary: StudySummary; sources: StudySummarySource[] } | null> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const [sum] = await activeDb
+        .select()
+        .from(studySummariesTable)
+        .where(
+          and(
+            eq(studySummariesTable.id, summaryId),
+            eq(studySummariesTable.userId, userId),
+            isNull(studySummariesTable.deletedAt),
+          ),
+        )
+        .limit(1);
+
+      if (!sum) return null;
+
+      const sources = await activeDb
+        .select()
+        .from(studySummarySourcesTable)
+        .where(eq(studySummarySourcesTable.summaryId, summaryId));
+
+      return { summary: sum, sources };
+    } catch {
+      // Fall through
+    }
+  }
+
+  const memSum = memoryStore.studySummaries.get(summaryId);
+  if (!memSum || memSum.userId !== userId || memSum.deletedAt) return null;
+
+  const sources: StudySummarySource[] = [];
+  for (const s of memoryStore.studySummarySources.values()) {
+    if (s.summaryId === summaryId) {
+      sources.push(s);
+    }
+  }
+
+  return { summary: memSum, sources };
+}
+
+export async function listStudySummariesByBook(
+  bookId: string,
+  userId: string,
+): Promise<StudySummary[]> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const rows = await activeDb
+        .select()
+        .from(studySummariesTable)
+        .where(
+          and(
+            eq(studySummariesTable.bookId, bookId),
+            eq(studySummariesTable.userId, userId),
+            isNull(studySummariesTable.deletedAt),
+          ),
+        )
+        .orderBy(desc(studySummariesTable.createdAt));
+      return rows;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const results: StudySummary[] = [];
+  for (const s of memoryStore.studySummaries.values()) {
+    if (s.bookId === bookId && s.userId === userId && !s.deletedAt) {
+      results.push(s);
+    }
+  }
+  return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
+export async function deleteStudySummary(summaryId: string, userId: string): Promise<boolean> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const res = await activeDb
+        .update(studySummariesTable)
+        .set({ deletedAt: new Date() })
+        .where(and(eq(studySummariesTable.id, summaryId), eq(studySummariesTable.userId, userId)));
+      return (res.rowCount ?? 1) > 0;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const sum = memoryStore.studySummaries.get(summaryId);
+  if (sum && sum.userId === userId) {
+    sum.deletedAt = new Date();
+    return true;
+  }
+  return false;
+}
+
+export async function markStudySummariesOutdated(bookId: string): Promise<void> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      await activeDb
+        .update(studySummariesTable)
+        .set({ status: "outdated", updatedAt: new Date() })
+        .where(eq(studySummariesTable.bookId, bookId));
+    } catch {}
+  }
+  for (const s of memoryStore.studySummaries.values()) {
+    if (s.bookId === bookId) {
+      s.status = "outdated";
+      s.updatedAt = new Date();
+    }
+  }
+}
+
+// 2. Study Concepts
+export async function createStudyConceptWithSources(
+  conceptData: Omit<InsertStudyConcept, "id" | "createdAt" | "updatedAt"> & { id?: string },
+  sourcesData: Array<Omit<InsertStudyConceptSource, "id" | "conceptId">>,
+): Promise<{ concept: StudyConcept; sources: StudyConceptSource[] }> {
+  const conceptId = conceptData.id || crypto.randomUUID();
+  const now = new Date();
+
+  const conceptRecord: StudyConcept = {
+    id: conceptId,
+    userId: conceptData.userId,
+    bookId: conceptData.bookId,
+    scopeType: conceptData.scopeType,
+    scopeData: conceptData.scopeData,
+    term: conceptData.term,
+    definition: conceptData.definition,
+    simpleExplanation: conceptData.simpleExplanation || null,
+    importance: conceptData.importance || "high",
+    sourceHash: conceptData.sourceHash,
+    status: conceptData.status || "ready",
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  };
+
+  const sourcesRecords: StudyConceptSource[] = sourcesData.map((src, idx) => ({
+    id: crypto.randomUUID(),
+    conceptId,
+    chunkId: src.chunkId || null,
+    bookId: conceptData.bookId,
+    pageNumber: src.pageNumber,
+    quote: src.quote,
+    rank: src.rank ?? idx + 1,
+  }));
+
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      await activeDb.insert(studyConceptsTable).values(conceptRecord);
+      if (sourcesRecords.length > 0) {
+        await activeDb.insert(studyConceptSourcesTable).values(sourcesRecords);
+      }
+      return { concept: conceptRecord, sources: sourcesRecords };
+    } catch {
+      // Fall through
+    }
+  }
+
+  memoryStore.studyConcepts.set(conceptId, conceptRecord);
+  for (const s of sourcesRecords) {
+    memoryStore.studyConceptSources.set(s.id, s);
+  }
+
+  return { concept: conceptRecord, sources: sourcesRecords };
+}
+
+export async function listStudyConceptsByBook(
+  bookId: string,
+  userId: string,
+): Promise<Array<{ concept: StudyConcept; sources: StudyConceptSource[] }>> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const concepts = await activeDb
+        .select()
+        .from(studyConceptsTable)
+        .where(
+          and(
+            eq(studyConceptsTable.bookId, bookId),
+            eq(studyConceptsTable.userId, userId),
+            isNull(studyConceptsTable.deletedAt),
+          ),
+        )
+        .orderBy(desc(studyConceptsTable.createdAt));
+
+      const results = [];
+      for (const c of concepts) {
+        const sources = await activeDb
+          .select()
+          .from(studyConceptSourcesTable)
+          .where(eq(studyConceptSourcesTable.conceptId, c.id));
+        results.push({ concept: c, sources });
+      }
+      return results;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const results: Array<{ concept: StudyConcept; sources: StudyConceptSource[] }> = [];
+  for (const c of memoryStore.studyConcepts.values()) {
+    if (c.bookId === bookId && c.userId === userId && !c.deletedAt) {
+      const sources: StudyConceptSource[] = [];
+      for (const s of memoryStore.studyConceptSources.values()) {
+        if (s.conceptId === c.id) {
+          sources.push(s);
+        }
+      }
+      results.push({ concept: c, sources });
+    }
+  }
+
+  return results.sort((a, b) => b.concept.createdAt.getTime() - a.concept.createdAt.getTime());
+}
+
+// 3. Flashcard Decks
+export async function createFlashcardDeck(
+  data: Omit<InsertFlashcardDeck, "id" | "createdAt" | "updatedAt"> & { id?: string },
+): Promise<FlashcardDeck> {
+  const deckId = data.id || crypto.randomUUID();
+  const now = new Date();
+
+  const record: FlashcardDeck = {
+    id: deckId,
+    userId: data.userId,
+    bookId: data.bookId,
+    title: data.title,
+    scopeType: data.scopeType,
+    scopeData: data.scopeData,
+    generationVersion: data.generationVersion ?? 1,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  };
+
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      await activeDb.insert(flashcardDecksTable).values(record);
+      return record;
+    } catch {
+      // Fall through
+    }
+  }
+
+  memoryStore.flashcardDecks.set(deckId, record);
+  return record;
+}
+
+export async function findFlashcardDeckById(
+  deckId: string,
+  userId: string,
+): Promise<FlashcardDeck | null> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const [deck] = await activeDb
+        .select()
+        .from(flashcardDecksTable)
+        .where(
+          and(
+            eq(flashcardDecksTable.id, deckId),
+            eq(flashcardDecksTable.userId, userId),
+            isNull(flashcardDecksTable.deletedAt),
+          ),
+        )
+        .limit(1);
+      return deck || null;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const d = memoryStore.flashcardDecks.get(deckId);
+  if (!d || d.userId !== userId || d.deletedAt) return null;
+  return d;
+}
+
+export async function listFlashcardDecksByBook(
+  bookId: string,
+  userId: string,
+): Promise<FlashcardDeck[]> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const rows = await activeDb
+        .select()
+        .from(flashcardDecksTable)
+        .where(
+          and(
+            eq(flashcardDecksTable.bookId, bookId),
+            eq(flashcardDecksTable.userId, userId),
+            isNull(flashcardDecksTable.deletedAt),
+          ),
+        )
+        .orderBy(desc(flashcardDecksTable.createdAt));
+      return rows;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const results: FlashcardDeck[] = [];
+  for (const d of memoryStore.flashcardDecks.values()) {
+    if (d.bookId === bookId && d.userId === userId && !d.deletedAt) {
+      results.push(d);
+    }
+  }
+  return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
+export async function updateFlashcardDeck(
+  deckId: string,
+  userId: string,
+  data: { title?: string },
+): Promise<FlashcardDeck | null> {
+  const now = new Date();
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const [updated] = await activeDb
+        .update(flashcardDecksTable)
+        .set({ ...data, updatedAt: now })
+        .where(
+          and(
+            eq(flashcardDecksTable.id, deckId),
+            eq(flashcardDecksTable.userId, userId),
+            isNull(flashcardDecksTable.deletedAt),
+          ),
+        )
+        .returning();
+      return updated || null;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const d = memoryStore.flashcardDecks.get(deckId);
+  if (!d || d.userId !== userId || d.deletedAt) return null;
+  if (data.title !== undefined) d.title = data.title;
+  d.updatedAt = now;
+  return d;
+}
+
+export async function deleteFlashcardDeck(deckId: string, userId: string): Promise<boolean> {
+  const now = new Date();
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const res = await activeDb
+        .update(flashcardDecksTable)
+        .set({ deletedAt: now })
+        .where(and(eq(flashcardDecksTable.id, deckId), eq(flashcardDecksTable.userId, userId)));
+      // Also soft-delete cards
+      await activeDb
+        .update(flashcardsTable)
+        .set({ deletedAt: now })
+        .where(eq(flashcardsTable.deckId, deckId));
+      return (res.rowCount ?? 1) > 0;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const d = memoryStore.flashcardDecks.get(deckId);
+  if (d && d.userId === userId) {
+    d.deletedAt = now;
+    for (const card of memoryStore.flashcards.values()) {
+      if (card.deckId === deckId) {
+        card.deletedAt = now;
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
+// 4. Flashcards
+export async function createFlashcard(
+  data: Omit<InsertFlashcard, "id" | "createdAt" | "updatedAt"> & { id?: string },
+): Promise<Flashcard> {
+  const cardId = data.id || crypto.randomUUID();
+  const now = new Date();
+
+  const record: Flashcard = {
+    id: cardId,
+    deckId: data.deckId,
+    userId: data.userId,
+    bookId: data.bookId,
+    cardType: data.cardType,
+    origin: data.origin || "manual",
+    front: data.front,
+    back: data.back,
+    explanation: data.explanation || null,
+    sourcePage: data.sourcePage ?? null,
+    sourceAnchorData: data.sourceAnchorData || null,
+    contentHash: data.contentHash,
+    sourceHash: data.sourceHash || null,
+    difficulty: data.difficulty || "medium",
+    status: data.status || "ready",
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  };
+
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      await activeDb.insert(flashcardsTable).values(record);
+      return record;
+    } catch {
+      // Fall through
+    }
+  }
+
+  memoryStore.flashcards.set(cardId, record);
+  return record;
+}
+
+export async function createBatchFlashcards(
+  cards: Array<Omit<InsertFlashcard, "id" | "createdAt" | "updatedAt"> & { id?: string }>,
+): Promise<Flashcard[]> {
+  const records: Flashcard[] = [];
+  for (const c of cards) {
+    const created = await createFlashcard(c);
+    records.push(created);
+  }
+  return records;
+}
+
+export async function findFlashcardById(cardId: string, userId: string): Promise<Flashcard | null> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const [c] = await activeDb
+        .select()
+        .from(flashcardsTable)
+        .where(
+          and(
+            eq(flashcardsTable.id, cardId),
+            eq(flashcardsTable.userId, userId),
+            isNull(flashcardsTable.deletedAt),
+          ),
+        )
+        .limit(1);
+      return c || null;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const card = memoryStore.flashcards.get(cardId);
+  if (!card || card.userId !== userId || card.deletedAt) return null;
+  return card;
+}
+
+export async function listFlashcardsByDeck(
+  deckId: string,
+  userId: string,
+): Promise<Flashcard[]> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const rows = await activeDb
+        .select()
+        .from(flashcardsTable)
+        .where(
+          and(
+            eq(flashcardsTable.deckId, deckId),
+            eq(flashcardsTable.userId, userId),
+            isNull(flashcardsTable.deletedAt),
+          ),
+        )
+        .orderBy(desc(flashcardsTable.createdAt));
+      return rows;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const results: Flashcard[] = [];
+  for (const c of memoryStore.flashcards.values()) {
+    if (c.deckId === deckId && c.userId === userId && !c.deletedAt) {
+      results.push(c);
+    }
+  }
+  return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
+export async function listFlashcardsByBook(
+  bookId: string,
+  userId: string,
+): Promise<Flashcard[]> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const rows = await activeDb
+        .select()
+        .from(flashcardsTable)
+        .where(
+          and(
+            eq(flashcardsTable.bookId, bookId),
+            eq(flashcardsTable.userId, userId),
+            isNull(flashcardsTable.deletedAt),
+          ),
+        )
+        .orderBy(desc(flashcardsTable.createdAt));
+      return rows;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const results: Flashcard[] = [];
+  for (const c of memoryStore.flashcards.values()) {
+    if (c.bookId === bookId && c.userId === userId && !c.deletedAt) {
+      results.push(c);
+    }
+  }
+  return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
+export async function updateFlashcard(
+  cardId: string,
+  userId: string,
+  data: Partial<Pick<Flashcard, "front" | "back" | "explanation" | "difficulty">>,
+): Promise<Flashcard | null> {
+  const now = new Date();
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const [updated] = await activeDb
+        .update(flashcardsTable)
+        .set({ ...data, updatedAt: now })
+        .where(
+          and(
+            eq(flashcardsTable.id, cardId),
+            eq(flashcardsTable.userId, userId),
+            isNull(flashcardsTable.deletedAt),
+          ),
+        )
+        .returning();
+      return updated || null;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const card = memoryStore.flashcards.get(cardId);
+  if (!card || card.userId !== userId || card.deletedAt) return null;
+  if (data.front !== undefined) card.front = data.front;
+  if (data.back !== undefined) card.back = data.back;
+  if (data.explanation !== undefined) card.explanation = data.explanation;
+  if (data.difficulty !== undefined) card.difficulty = data.difficulty;
+  card.updatedAt = now;
+  return card;
+}
+
+export async function deleteFlashcard(cardId: string, userId: string): Promise<boolean> {
+  const now = new Date();
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const res = await activeDb
+        .update(flashcardsTable)
+        .set({ deletedAt: now })
+        .where(and(eq(flashcardsTable.id, cardId), eq(flashcardsTable.userId, userId)));
+      return (res.rowCount ?? 1) > 0;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const card = memoryStore.flashcards.get(cardId);
+  if (card && card.userId === userId) {
+    card.deletedAt = now;
+    return true;
+  }
+  return false;
+}
+
+export async function markFlashcardsOutdated(bookId: string): Promise<void> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      await activeDb
+        .update(flashcardsTable)
+        .set({ status: "outdated", updatedAt: new Date() })
+        .where(eq(flashcardsTable.bookId, bookId));
+    } catch {}
+  }
+  for (const c of memoryStore.flashcards.values()) {
+    if (c.bookId === bookId) {
+      c.status = "outdated";
+      c.updatedAt = new Date();
+    }
+  }
+}
+
+// 5. Flashcard Reviews & Due Queue
+export async function createFlashcardReview(
+  data: Omit<InsertFlashcardReview, "id"> & { id?: string },
+): Promise<FlashcardReview> {
+  const reviewId = data.id || crypto.randomUUID();
+  const now = new Date();
+
+  const record: FlashcardReview = {
+    id: reviewId,
+    userId: data.userId,
+    flashcardId: data.flashcardId,
+    rating: data.rating,
+    reviewedAt: data.reviewedAt || now,
+    previousIntervalDays: data.previousIntervalDays ?? 0,
+    nextIntervalDays: data.nextIntervalDays ?? 1,
+    dueAt: data.dueAt,
+  };
+
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      await activeDb.insert(flashcardReviewsTable).values(record);
+      return record;
+    } catch {
+      // Fall through
+    }
+  }
+
+  memoryStore.flashcardReviews.set(reviewId, record);
+  return record;
+}
+
+export async function getLatestReviewForCard(
+  flashcardId: string,
+  userId: string,
+): Promise<FlashcardReview | null> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const [r] = await activeDb
+        .select()
+        .from(flashcardReviewsTable)
+        .where(
+          and(
+            eq(flashcardReviewsTable.flashcardId, flashcardId),
+            eq(flashcardReviewsTable.userId, userId),
+          ),
+        )
+        .orderBy(desc(flashcardReviewsTable.reviewedAt))
+        .limit(1);
+      return r || null;
+    } catch {
+      // Fall through
+    }
+  }
+
+  let latest: FlashcardReview | null = null;
+  for (const r of memoryStore.flashcardReviews.values()) {
+    if (r.flashcardId === flashcardId && r.userId === userId) {
+      if (!latest || r.reviewedAt.getTime() > latest.reviewedAt.getTime()) {
+        latest = r;
+      }
+    }
+  }
+  return latest;
+}
+
+export async function listDueFlashcards(
+  bookId: string,
+  userId: string,
+  options?: { deckId?: string; all?: boolean },
+): Promise<{ items: Flashcard[]; dueCount: number; totalCards: number }> {
+  const allCards = await listFlashcardsByBook(bookId, userId);
+  const filtered = options?.deckId
+    ? allCards.filter((c) => c.deckId === options.deckId)
+    : allCards;
+
+  const now = new Date();
+  const dueItems: Flashcard[] = [];
+
+  for (const card of filtered) {
+    const latestReview = await getLatestReviewForCard(card.id, userId);
+    const isDue = !latestReview || latestReview.dueAt.getTime() <= now.getTime();
+    if (isDue || options?.all) {
+      dueItems.push(card);
+    }
+  }
+
+  const dueCount = dueItems.length;
+  return {
+    items: dueItems,
+    dueCount,
+    totalCards: filtered.length,
+  };
+}
+
+export async function countDueFlashcardsToday(userId: string): Promise<number> {
+  const now = new Date();
+  let count = 0;
+
+  // Iterate over all active cards for user
+  const userCards: Flashcard[] = [];
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const rows = await activeDb
+        .select()
+        .from(flashcardsTable)
+        .where(and(eq(flashcardsTable.userId, userId), isNull(flashcardsTable.deletedAt)));
+      userCards.push(...rows);
+    } catch {
+      // Fall through
+    }
+  } else {
+    for (const c of memoryStore.flashcards.values()) {
+      if (c.userId === userId && !c.deletedAt) {
+        userCards.push(c);
+      }
+    }
+  }
+
+  for (const card of userCards) {
+    const latestReview = await getLatestReviewForCard(card.id, userId);
+    if (!latestReview || latestReview.dueAt.getTime() <= now.getTime()) {
+      count++;
+    }
+  }
+
+  return count;
+}
+
+// 6. Study Sessions
+export async function createStudySession(
+  data: Omit<InsertStudySession, "id" | "startedAt"> & { id?: string },
+): Promise<StudySession> {
+  const sessionId = data.id || crypto.randomUUID();
+  const now = new Date();
+
+  const record: StudySession = {
+    id: sessionId,
+    userId: data.userId,
+    bookId: data.bookId,
+    deckId: data.deckId || null,
+    sessionType: data.sessionType || "flashcard_review",
+    startedAt: now,
+    completedAt: null,
+    cardsSeen: 0,
+    cardsAgain: 0,
+    cardsHard: 0,
+    cardsGood: 0,
+    cardsEasy: 0,
+  };
+
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      await activeDb.insert(studySessionsTable).values(record);
+      return record;
+    } catch {
+      // Fall through
+    }
+  }
+
+  memoryStore.studySessions.set(sessionId, record);
+  return record;
+}
+
+export async function findStudySessionById(
+  sessionId: string,
+  userId: string,
+): Promise<StudySession | null> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const [s] = await activeDb
+        .select()
+        .from(studySessionsTable)
+        .where(and(eq(studySessionsTable.id, sessionId), eq(studySessionsTable.userId, userId)))
+        .limit(1);
+      return s || null;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const s = memoryStore.studySessions.get(sessionId);
+  if (!s || s.userId !== userId) return null;
+  return s;
+}
+
+export async function completeStudySession(
+  sessionId: string,
+  userId: string,
+  data: {
+    cardsSeen: number;
+    cardsAgain: number;
+    cardsHard: number;
+    cardsGood: number;
+    cardsEasy: number;
+  },
+): Promise<StudySession | null> {
+  const now = new Date();
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const [updated] = await activeDb
+        .update(studySessionsTable)
+        .set({
+          ...data,
+          completedAt: now,
+        })
+        .where(and(eq(studySessionsTable.id, sessionId), eq(studySessionsTable.userId, userId)))
+        .returning();
+      return updated || null;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const s = memoryStore.studySessions.get(sessionId);
+  if (!s || s.userId !== userId) return null;
+  s.cardsSeen = data.cardsSeen;
+  s.cardsAgain = data.cardsAgain;
+  s.cardsHard = data.cardsHard;
+  s.cardsGood = data.cardsGood;
+  s.cardsEasy = data.cardsEasy;
+  s.completedAt = now;
+  return s;
+}
+
+export async function listRecentStudySessions(
+  userId: string,
+  limit: number = 5,
+): Promise<StudySession[]> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const rows = await activeDb
+        .select()
+        .from(studySessionsTable)
+        .where(eq(studySessionsTable.userId, userId))
+        .orderBy(desc(studySessionsTable.startedAt))
+        .limit(limit);
+      return rows;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const results: StudySession[] = [];
+  for (const s of memoryStore.studySessions.values()) {
+    if (s.userId === userId) {
+      results.push(s);
+    }
+  }
+  return results.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime()).slice(0, limit);
+}
+
+export async function getStudyOverview(userId: string): Promise<{
+  dueCardsToday: number;
+  recentSessions: StudySession[];
+  totalDecks: number;
+  totalCards: number;
+}> {
+  const dueCardsToday = await countDueFlashcardsToday(userId);
+  const recentSessions = await listRecentStudySessions(userId, 5);
+
+  let totalDecks = 0;
+  let totalCards = 0;
+
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const decks = await activeDb
+        .select()
+        .from(flashcardDecksTable)
+        .where(and(eq(flashcardDecksTable.userId, userId), isNull(flashcardDecksTable.deletedAt)));
+      totalDecks = decks.length;
+
+      const cards = await activeDb
+        .select()
+        .from(flashcardsTable)
+        .where(and(eq(flashcardsTable.userId, userId), isNull(flashcardsTable.deletedAt)));
+      totalCards = cards.length;
+
+      return {
+        dueCardsToday,
+        recentSessions,
+        totalDecks,
+        totalCards,
+      };
+    } catch {}
+  }
+
+  for (const d of memoryStore.flashcardDecks.values()) {
+    if (d.userId === userId && !d.deletedAt) totalDecks++;
+  }
+  for (const c of memoryStore.flashcards.values()) {
+    if (c.userId === userId && !c.deletedAt) totalCards++;
+  }
+
+  return {
+    dueCardsToday,
+    recentSessions,
+    totalDecks,
+    totalCards,
+  };
+}
+
 // Seed default demo user for frictionless dev and tests
 (async () => {
   const demoEmail = "demo@bookmind.app";
@@ -2985,3 +4038,4 @@ export async function getAiUsageByUser(userId: string): Promise<AiUsage[]> {
     });
   }
 })().catch(() => {});
+

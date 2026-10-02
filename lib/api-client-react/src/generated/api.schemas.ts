@@ -809,6 +809,373 @@ export interface AiConversationDetail {
   messages: AiMessageItem[];
 }
 
+export type StudyScopeType = typeof StudyScopeType[keyof typeof StudyScopeType];
+
+
+export const StudyScopeType = {
+  page: 'page',
+  page_range: 'page_range',
+  separator: 'separator',
+  book: 'book',
+  highlights: 'highlights',
+} as const;
+
+export interface StudyScope {
+  type: StudyScopeType;
+  pageNumber?: number | null;
+  startPage?: number | null;
+  endPage?: number | null;
+  separatorId?: string | null;
+  highlightIds?: string[] | null;
+}
+
+export type StudySummaryScopeData = { [key: string]: unknown };
+
+export type StudySummarySummaryType = typeof StudySummarySummaryType[keyof typeof StudySummarySummaryType];
+
+
+export const StudySummarySummaryType = {
+  brief: 'brief',
+  standard: 'standard',
+  deep: 'deep',
+} as const;
+
+export type StudySummaryStatus = typeof StudySummaryStatus[keyof typeof StudySummaryStatus];
+
+
+export const StudySummaryStatus = {
+  ready: 'ready',
+  outdated: 'outdated',
+  failed: 'failed',
+} as const;
+
+export interface StudySummary {
+  id: string;
+  userId: string;
+  bookId: string;
+  scopeType: string;
+  scopeData: StudySummaryScopeData;
+  summaryType: StudySummarySummaryType;
+  title: string;
+  content: string;
+  language: string;
+  isPersonal: boolean;
+  includeHighlights?: boolean;
+  includeNotes?: boolean;
+  generationVersion?: number;
+  promptVersion?: string;
+  sourceHash: string;
+  status: StudySummaryStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StudySummarySource {
+  id: string;
+  summaryId: string;
+  chunkId?: string | null;
+  bookId: string;
+  pageNumber: number;
+  quote: string;
+  startBlockId?: string | null;
+  startOffset?: number | null;
+  endBlockId?: string | null;
+  endOffset?: number | null;
+  rank: number;
+}
+
+export interface StudySummaryDetail {
+  summary: StudySummary;
+  sources: StudySummarySource[];
+}
+
+export type GenerateStudySummaryRequestSummaryType = typeof GenerateStudySummaryRequestSummaryType[keyof typeof GenerateStudySummaryRequestSummaryType];
+
+
+export const GenerateStudySummaryRequestSummaryType = {
+  brief: 'brief',
+  standard: 'standard',
+  deep: 'deep',
+} as const;
+
+export interface GenerateStudySummaryRequest {
+  scope: StudyScope;
+  summaryType: GenerateStudySummaryRequestSummaryType;
+  includeHighlights?: boolean;
+  includeNotes?: boolean;
+  language?: string;
+}
+
+export interface StudySummaryListResponse {
+  items: StudySummary[];
+}
+
+export type StudyConceptScopeData = { [key: string]: unknown };
+
+export type StudyConceptImportance = typeof StudyConceptImportance[keyof typeof StudyConceptImportance];
+
+
+export const StudyConceptImportance = {
+  essential: 'essential',
+  high: 'high',
+  medium: 'medium',
+} as const;
+
+export interface StudyConcept {
+  id: string;
+  userId: string;
+  bookId: string;
+  scopeType: string;
+  scopeData?: StudyConceptScopeData;
+  term: string;
+  definition: string;
+  simpleExplanation?: string | null;
+  importance: StudyConceptImportance;
+  sourceHash: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StudyConceptSource {
+  id: string;
+  conceptId: string;
+  chunkId?: string | null;
+  bookId: string;
+  pageNumber: number;
+  quote: string;
+  rank: number;
+}
+
+export interface StudyConceptDetail {
+  concept: StudyConcept;
+  sources: StudyConceptSource[];
+}
+
+export interface GenerateConceptsRequest {
+  scope: StudyScope;
+  count?: number;
+}
+
+export interface StudyConceptListResponse {
+  items: StudyConceptDetail[];
+}
+
+export type FlashcardDeckScopeData = { [key: string]: unknown };
+
+export interface FlashcardDeck {
+  id: string;
+  userId: string;
+  bookId: string;
+  title: string;
+  scopeType: string;
+  scopeData: FlashcardDeckScopeData;
+  generationVersion: number;
+  cardsCount?: number | null;
+  dueCount?: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFlashcardDeckRequest {
+  title: string;
+  scope: StudyScope;
+}
+
+export interface UpdateFlashcardDeckRequest {
+  title?: string;
+}
+
+export interface FlashcardDeckListResponse {
+  items: FlashcardDeck[];
+}
+
+export interface FlashcardDeckDetail {
+  deck: FlashcardDeck;
+  cardsCount: number;
+  dueCount: number;
+}
+
+export type FlashcardCardType = typeof FlashcardCardType[keyof typeof FlashcardCardType];
+
+
+export const FlashcardCardType = {
+  concept: 'concept',
+  question: 'question',
+  cloze: 'cloze',
+} as const;
+
+export type FlashcardOrigin = typeof FlashcardOrigin[keyof typeof FlashcardOrigin];
+
+
+export const FlashcardOrigin = {
+  ai: 'ai',
+  manual: 'manual',
+} as const;
+
+export type FlashcardSourceAnchorData = { [key: string]: unknown } | null;
+
+export type FlashcardStatus = typeof FlashcardStatus[keyof typeof FlashcardStatus];
+
+
+export const FlashcardStatus = {
+  ready: 'ready',
+  outdated: 'outdated',
+} as const;
+
+export interface Flashcard {
+  id: string;
+  deckId: string;
+  userId: string;
+  bookId: string;
+  cardType: FlashcardCardType;
+  origin: FlashcardOrigin;
+  front: string;
+  back: string;
+  explanation?: string | null;
+  sourcePage?: number | null;
+  sourceAnchorData?: FlashcardSourceAnchorData;
+  contentHash: string;
+  sourceHash?: string | null;
+  difficulty: string;
+  status: FlashcardStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type GenerateFlashcardsRequestCount = typeof GenerateFlashcardsRequestCount[keyof typeof GenerateFlashcardsRequestCount];
+
+
+export const GenerateFlashcardsRequestCount = {
+  NUMBER_5: 5,
+  NUMBER_10: 10,
+  NUMBER_20: 20,
+} as const;
+
+export type GenerateFlashcardsRequestCardTypesItem = typeof GenerateFlashcardsRequestCardTypesItem[keyof typeof GenerateFlashcardsRequestCardTypesItem];
+
+
+export const GenerateFlashcardsRequestCardTypesItem = {
+  concept: 'concept',
+  question: 'question',
+  cloze: 'cloze',
+} as const;
+
+export interface GenerateFlashcardsRequest {
+  count?: GenerateFlashcardsRequestCount;
+  cardTypes?: GenerateFlashcardsRequestCardTypesItem[];
+}
+
+export type CreateFlashcardRequestCardType = typeof CreateFlashcardRequestCardType[keyof typeof CreateFlashcardRequestCardType];
+
+
+export const CreateFlashcardRequestCardType = {
+  concept: 'concept',
+  question: 'question',
+  cloze: 'cloze',
+} as const;
+
+export interface CreateFlashcardRequest {
+  cardType?: CreateFlashcardRequestCardType;
+  front: string;
+  back: string;
+  explanation?: string | null;
+  sourcePage?: number | null;
+}
+
+export interface UpdateFlashcardRequest {
+  front?: string;
+  back?: string;
+  explanation?: string | null;
+  difficulty?: string;
+}
+
+export interface FlashcardListResponse {
+  items: Flashcard[];
+}
+
+export type FlashcardReviewRating = typeof FlashcardReviewRating[keyof typeof FlashcardReviewRating];
+
+
+export const FlashcardReviewRating = {
+  again: 'again',
+  hard: 'hard',
+  good: 'good',
+  easy: 'easy',
+} as const;
+
+export interface FlashcardReview {
+  id: string;
+  userId: string;
+  flashcardId: string;
+  rating: FlashcardReviewRating;
+  reviewedAt: string;
+  previousIntervalDays: number;
+  nextIntervalDays: number;
+  dueAt: string;
+}
+
+export type SubmitCardReviewRequestRating = typeof SubmitCardReviewRequestRating[keyof typeof SubmitCardReviewRequestRating];
+
+
+export const SubmitCardReviewRequestRating = {
+  again: 'again',
+  hard: 'hard',
+  good: 'good',
+  easy: 'easy',
+} as const;
+
+export interface SubmitCardReviewRequest {
+  rating: SubmitCardReviewRequestRating;
+}
+
+export interface FlashcardReviewResult {
+  review: FlashcardReview;
+  nextDueAt: string;
+  nextIntervalDays: number;
+}
+
+export interface FlashcardReviewQueueResponse {
+  items: Flashcard[];
+  dueCount: number;
+  totalCards: number;
+}
+
+export interface StudySession {
+  id: string;
+  userId: string;
+  bookId: string;
+  deckId?: string | null;
+  sessionType: string;
+  startedAt: string;
+  completedAt?: string | null;
+  cardsSeen: number;
+  cardsAgain: number;
+  cardsHard: number;
+  cardsGood: number;
+  cardsEasy: number;
+}
+
+export interface StartStudySessionRequest {
+  deckId?: string | null;
+  sessionType?: string;
+}
+
+export interface CompleteStudySessionRequest {
+  cardsSeen?: number;
+  cardsAgain?: number;
+  cardsHard?: number;
+  cardsGood?: number;
+  cardsEasy?: number;
+}
+
+export interface StudyOverviewResponse {
+  dueCardsToday: number;
+  recentSessions: StudySession[];
+  totalDecks: number;
+  totalCards: number;
+}
+
 export type GetBookNotesParams = {
 pageNumber?: number;
 };
@@ -822,5 +1189,10 @@ limit?: number;
 
 export type GetBookHighlightsParams = {
 pageNumber?: number;
+};
+
+export type GetReviewQueueParams = {
+deckId?: string;
+all?: boolean;
 };
 
