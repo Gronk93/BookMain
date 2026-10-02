@@ -12,6 +12,12 @@ import {
   highlightsTable,
   separatorsTable,
   processingJobsTable,
+  bookAiIndexesTable,
+  aiChunksTable,
+  aiConversationsTable,
+  aiMessagesTable,
+  aiMessageSourcesTable,
+  aiUsageTable,
   type User,
   type UserPreferences,
   type Book,
@@ -27,6 +33,18 @@ import {
   type Separator,
   type InsertSeparator,
   type ProcessingJob,
+  type BookAiIndex,
+  type InsertBookAiIndex,
+  type AiChunk,
+  type InsertAiChunk,
+  type AiConversation,
+  type InsertAiConversation,
+  type AiMessage,
+  type InsertAiMessage,
+  type AiMessageSource,
+  type InsertAiMessageSource,
+  type AiUsage,
+  type InsertAiUsage,
 } from "@workspace/db";
 import { eq, and, desc, isNull, sql, inArray } from "drizzle-orm";
 import crypto from "node:crypto";
@@ -49,6 +67,18 @@ export type {
   Separator,
   InsertSeparator,
   ProcessingJob,
+  BookAiIndex,
+  InsertBookAiIndex,
+  AiChunk,
+  InsertAiChunk,
+  AiConversation,
+  InsertAiConversation,
+  AiMessage,
+  InsertAiMessage,
+  AiMessageSource,
+  InsertAiMessageSource,
+  AiUsage,
+  InsertAiUsage,
 };
 
 // Types matching API contract
@@ -87,6 +117,12 @@ interface InMemoryStore {
   highlights: Map<string, Highlight>;
   separators: Map<string, Separator>;
   processingJobs: Map<string, ProcessingJob>; // key: bookId
+  bookAiIndexes: Map<string, BookAiIndex>; // key: bookId
+  aiChunks: Map<string, AiChunk>; // key: chunkId
+  aiConversations: Map<string, AiConversation>; // key: conversationId
+  aiMessages: Map<string, AiMessage>; // key: messageId
+  aiMessageSources: Map<string, AiMessageSource>; // key: sourceId
+  aiUsage: Map<string, AiUsage>; // key: usageId
 }
 
 const memoryStore: InMemoryStore = {
@@ -101,6 +137,12 @@ const memoryStore: InMemoryStore = {
   highlights: new Map(),
   separators: new Map(),
   processingJobs: new Map(),
+  bookAiIndexes: new Map(),
+  aiChunks: new Map(),
+  aiConversations: new Map(),
+  aiMessages: new Map(),
+  aiMessageSources: new Map(),
+  aiUsage: new Map(),
 };
 
 // Initial sample books to seed for any user
@@ -2432,6 +2474,503 @@ export async function revalidateHighlightsForBook(bookId: string): Promise<void>
       h.updatedAt = now;
     }
   }
+}
+
+// ==========================================
+// BM-PRD-07: AI & RAG REPOSITORY OPERATIONS
+// ==========================================
+
+export async function getBookPagesForIndexing(bookId: string): Promise<BookPage[]> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const rows = await activeDb
+        .select()
+        .from(bookPagesTable)
+        .where(eq(bookPagesTable.bookId, bookId))
+        .orderBy(bookPagesTable.pageNumber);
+      return rows;
+    } catch {
+      // Fall through to memory
+    }
+  }
+  return memoryStore.pages.get(bookId) || [];
+}
+
+export async function getBookAiIndex(bookId: string): Promise<BookAiIndex | null> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const rows = await activeDb
+        .select()
+        .from(bookAiIndexesTable)
+        .where(eq(bookAiIndexesTable.bookId, bookId))
+        .orderBy(desc(bookAiIndexesTable.createdAt))
+        .limit(1);
+      return rows[0] || null;
+    } catch {
+      // Fall through to memory
+    }
+  }
+  return memoryStore.bookAiIndexes.get(bookId) || null;
+}
+
+export async function upsertBookAiIndex(
+  data: Partial<InsertBookAiIndex> & { bookId: string },
+): Promise<BookAiIndex> {
+  const activeDb = getDb();
+  const now = new Date();
+
+  if (activeDb) {
+    try {
+      const existing = await activeDb
+        .select()
+        .from(bookAiIndexesTable)
+        .where(eq(bookAiIndexesTable.bookId, data.bookId))
+        .limit(1);
+
+      if (existing.length > 0) {
+        const [updated] = await activeDb
+          .update(bookAiIndexesTable)
+          .set({
+            ...data,
+            updatedAt: now,
+          })
+          .where(eq(bookAiIndexesTable.id, existing[0].id))
+          .returning();
+        return updated;
+      } else {
+        const [created] = await activeDb
+          .insert(bookAiIndexesTable)
+          .values({
+            id: data.id || crypto.randomUUID(),
+            bookId: data.bookId,
+            status: data.status || "not_indexed",
+            indexVersion: data.indexVersion || "bm-rag-v1",
+            embeddingModel: data.embeddingModel || "mock-embedding-v1",
+            embeddingVersion: data.embeddingVersion || "1.0",
+            chunkCount: data.chunkCount ?? 0,
+            indexedPageCount: data.indexedPageCount ?? 0,
+            startedAt: data.startedAt,
+            completedAt: data.completedAt,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .returning();
+        return created;
+      }
+    } catch {
+      // Fall through to memory
+    }
+  }
+
+  // Memory fallback
+  const existing = memoryStore.bookAiIndexes.get(data.bookId);
+  const record: BookAiIndex = {
+    id: existing?.id || data.id || crypto.randomUUID(),
+    bookId: data.bookId,
+    status: data.status || existing?.status || "not_indexed",
+    indexVersion: data.indexVersion || existing?.indexVersion || "bm-rag-v1",
+    embeddingModel: data.embeddingModel || existing?.embeddingModel || "mock-embedding-v1",
+    embeddingVersion: data.embeddingVersion || existing?.embeddingVersion || "1.0",
+    chunkCount: data.chunkCount ?? existing?.chunkCount ?? 0,
+    indexedPageCount: data.indexedPageCount ?? existing?.indexedPageCount ?? 0,
+    startedAt: data.startedAt !== undefined ? (data.startedAt ? new Date(data.startedAt as any) : null) : existing?.startedAt || null,
+    completedAt: data.completedAt !== undefined ? (data.completedAt ? new Date(data.completedAt as any) : null) : existing?.completedAt || null,
+    createdAt: existing?.createdAt || now,
+    updatedAt: now,
+  };
+  memoryStore.bookAiIndexes.set(data.bookId, record);
+  return record;
+}
+
+export async function saveAiChunks(chunks: InsertAiChunk[]): Promise<AiChunk[]> {
+  const activeDb = getDb();
+  const now = new Date();
+
+  if (activeDb && chunks.length > 0) {
+    try {
+      const inserted = await activeDb.insert(aiChunksTable).values(chunks).returning();
+      return inserted;
+    } catch {
+      // Fall through to memory
+    }
+  }
+
+  // Memory fallback
+  const results: AiChunk[] = [];
+  for (const c of chunks) {
+    const chunkRecord: AiChunk = {
+      id: c.id || crypto.randomUUID(),
+      bookId: c.bookId,
+      pageNumber: c.pageNumber,
+      chunkIndex: c.chunkIndex,
+      text: c.text,
+      textHash: c.textHash,
+      startBlockId: c.startBlockId,
+      startOffset: c.startOffset,
+      endBlockId: c.endBlockId,
+      endOffset: c.endOffset,
+      tokenCount: c.tokenCount ?? 0,
+      qualityScore: c.qualityScore ?? 100,
+      textSource: c.textSource ?? "extracted",
+      embedding: c.embedding ?? null,
+      embeddingModel: c.embeddingModel ?? "mock-embedding-v1",
+      embeddingVersion: c.embeddingVersion ?? "1.0",
+      createdAt: now,
+      updatedAt: now,
+    };
+    memoryStore.aiChunks.set(chunkRecord.id, chunkRecord);
+    results.push(chunkRecord);
+  }
+  return results;
+}
+
+export async function getAiChunks(bookId: string, pageNumbers?: number[]): Promise<AiChunk[]> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const query = activeDb.select().from(aiChunksTable).where(eq(aiChunksTable.bookId, bookId));
+      const rows = await query;
+      if (pageNumbers && pageNumbers.length > 0) {
+        return rows.filter((r) => pageNumbers.includes(r.pageNumber));
+      }
+      return rows;
+    } catch {
+      // Fall through to memory
+    }
+  }
+
+  const results: AiChunk[] = [];
+  for (const chunk of memoryStore.aiChunks.values()) {
+    if (chunk.bookId === bookId) {
+      if (!pageNumbers || pageNumbers.includes(chunk.pageNumber)) {
+        results.push(chunk);
+      }
+    }
+  }
+  return results;
+}
+
+export async function deleteAiChunksByBookId(bookId: string): Promise<void> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      await activeDb.delete(aiChunksTable).where(eq(aiChunksTable.bookId, bookId));
+    } catch {
+      // Fall through
+    }
+  }
+  for (const [id, chunk] of memoryStore.aiChunks.entries()) {
+    if (chunk.bookId === bookId) {
+      memoryStore.aiChunks.delete(id);
+    }
+  }
+}
+
+export async function createAiConversation(data: InsertAiConversation): Promise<AiConversation> {
+  const activeDb = getDb();
+  const now = new Date();
+
+  if (activeDb) {
+    try {
+      const [conv] = await activeDb
+        .insert(aiConversationsTable)
+        .values({
+          ...data,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning();
+      return conv;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const conv: AiConversation = {
+    id: data.id || crypto.randomUUID(),
+    userId: data.userId,
+    bookId: data.bookId,
+    title: data.title,
+    scopeType: data.scopeType || "book",
+    scopeRef: data.scopeRef || null,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  };
+  memoryStore.aiConversations.set(conv.id, conv);
+  return conv;
+}
+
+export async function getAiConversations(userId: string, bookId: string): Promise<AiConversation[]> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const rows = await activeDb
+        .select()
+        .from(aiConversationsTable)
+        .where(
+          and(
+            eq(aiConversationsTable.userId, userId),
+            eq(aiConversationsTable.bookId, bookId),
+            isNull(aiConversationsTable.deletedAt),
+          ),
+        )
+        .orderBy(desc(aiConversationsTable.updatedAt));
+      return rows;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const results: AiConversation[] = [];
+  for (const c of memoryStore.aiConversations.values()) {
+    if (c.userId === userId && c.bookId === bookId && !c.deletedAt) {
+      results.push(c);
+    }
+  }
+  return results.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+}
+
+export async function getAiConversationById(conversationId: string): Promise<AiConversation | null> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const rows = await activeDb
+        .select()
+        .from(aiConversationsTable)
+        .where(
+          and(
+            eq(aiConversationsTable.id, conversationId),
+            isNull(aiConversationsTable.deletedAt),
+          ),
+        )
+        .limit(1);
+      return rows[0] || null;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const c = memoryStore.aiConversations.get(conversationId);
+  if (!c || c.deletedAt) return null;
+  return c;
+}
+
+export async function deleteAiConversation(conversationId: string): Promise<boolean> {
+  const activeDb = getDb();
+  const now = new Date();
+
+  if (activeDb) {
+    try {
+      const res = await activeDb
+        .update(aiConversationsTable)
+        .set({ deletedAt: now, updatedAt: now })
+        .where(eq(aiConversationsTable.id, conversationId))
+        .returning();
+      return res.length > 0;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const c = memoryStore.aiConversations.get(conversationId);
+  if (!c || c.deletedAt) return false;
+  c.deletedAt = now;
+  c.updatedAt = now;
+  return true;
+}
+
+export async function createAiMessage(data: InsertAiMessage): Promise<AiMessage> {
+  const activeDb = getDb();
+  const now = new Date();
+
+  if (activeDb) {
+    try {
+      const [msg] = await activeDb
+        .insert(aiMessagesTable)
+        .values({
+          ...data,
+          createdAt: now,
+        })
+        .returning();
+
+      // Update conversation updatedAt
+      await activeDb
+        .update(aiConversationsTable)
+        .set({ updatedAt: now })
+        .where(eq(aiConversationsTable.id, data.conversationId));
+
+      return msg;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const msg: AiMessage = {
+    id: data.id || crypto.randomUUID(),
+    conversationId: data.conversationId,
+    role: data.role,
+    content: data.content,
+    model: data.model || null,
+    provider: data.provider || null,
+    inputTokens: data.inputTokens ?? null,
+    outputTokens: data.outputTokens ?? null,
+    promptVersion: data.promptVersion || null,
+    createdAt: now,
+  };
+  memoryStore.aiMessages.set(msg.id, msg);
+
+  const conv = memoryStore.aiConversations.get(data.conversationId);
+  if (conv) {
+    conv.updatedAt = now;
+  }
+
+  return msg;
+}
+
+export async function getAiMessages(conversationId: string): Promise<AiMessage[]> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const rows = await activeDb
+        .select()
+        .from(aiMessagesTable)
+        .where(eq(aiMessagesTable.conversationId, conversationId))
+        .orderBy(aiMessagesTable.createdAt);
+      return rows;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const results: AiMessage[] = [];
+  for (const m of memoryStore.aiMessages.values()) {
+    if (m.conversationId === conversationId) {
+      results.push(m);
+    }
+  }
+  return results.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+}
+
+export async function createAiMessageSources(
+  sources: InsertAiMessageSource[],
+): Promise<AiMessageSource[]> {
+  const activeDb = getDb();
+  if (activeDb && sources.length > 0) {
+    try {
+      const inserted = await activeDb.insert(aiMessageSourcesTable).values(sources).returning();
+      return inserted;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const results: AiMessageSource[] = [];
+  for (const s of sources) {
+    const record: AiMessageSource = {
+      id: s.id || crypto.randomUUID(),
+      messageId: s.messageId,
+      chunkId: s.chunkId || null,
+      bookId: s.bookId,
+      pageNumber: s.pageNumber,
+      quote: s.quote,
+      startBlockId: s.startBlockId || null,
+      startOffset: s.startOffset ?? null,
+      endBlockId: s.endBlockId || null,
+      endOffset: s.endOffset ?? null,
+      retrievalScore: s.retrievalScore ?? null,
+      rank: s.rank ?? 1,
+    };
+    memoryStore.aiMessageSources.set(record.id, record);
+    results.push(record);
+  }
+  return results;
+}
+
+export async function getAiMessageSources(messageId: string): Promise<AiMessageSource[]> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const rows = await activeDb
+        .select()
+        .from(aiMessageSourcesTable)
+        .where(eq(aiMessageSourcesTable.messageId, messageId))
+        .orderBy(aiMessageSourcesTable.rank);
+      return rows;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const results: AiMessageSource[] = [];
+  for (const s of memoryStore.aiMessageSources.values()) {
+    if (s.messageId === messageId) {
+      results.push(s);
+    }
+  }
+  return results.sort((a, b) => a.rank - b.rank);
+}
+
+export async function recordAiUsage(data: InsertAiUsage): Promise<AiUsage> {
+  const activeDb = getDb();
+  const now = new Date();
+
+  if (activeDb) {
+    try {
+      const [u] = await activeDb
+        .insert(aiUsageTable)
+        .values({
+          ...data,
+          createdAt: now,
+        })
+        .returning();
+      return u;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const record: AiUsage = {
+    id: data.id || crypto.randomUUID(),
+    userId: data.userId,
+    bookId: data.bookId || null,
+    operation: data.operation,
+    provider: data.provider || "mock",
+    model: data.model,
+    inputUnits: data.inputUnits ?? 0,
+    outputUnits: data.outputUnits ?? 0,
+    durationMs: data.durationMs ?? 0,
+    estimatedCost: data.estimatedCost || "0.0000",
+    createdAt: now,
+  };
+  memoryStore.aiUsage.set(record.id, record);
+  return record;
+}
+
+export async function getAiUsageByUser(userId: string): Promise<AiUsage[]> {
+  const activeDb = getDb();
+  if (activeDb) {
+    try {
+      const rows = await activeDb
+        .select()
+        .from(aiUsageTable)
+        .where(eq(aiUsageTable.userId, userId))
+        .orderBy(desc(aiUsageTable.createdAt));
+      return rows;
+    } catch {
+      // Fall through
+    }
+  }
+
+  const results: AiUsage[] = [];
+  for (const u of memoryStore.aiUsage.values()) {
+    if (u.userId === userId) {
+      results.push(u);
+    }
+  }
+  return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
 // Seed default demo user for frictionless dev and tests

@@ -20,6 +20,11 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AiConversation,
+  AiConversationDetail,
+  AiIndexStatus,
+  AskBookRequest,
+  AskBookResponse,
   AuthResponse,
   BookDetailResponse,
   BookFileMetadata,
@@ -31,7 +36,11 @@ import type {
   CreateHighlightRequest,
   CreateNoteRequest,
   CreateSeparatorRequest,
+  DefineRequest,
+  DefineResponse,
   ErrorResponse,
+  ExplainRequest,
+  ExplainResponse,
   GetBookHighlightsParams,
   GetBookNotesParams,
   GetGlobalNotesParams,
@@ -3157,5 +3166,666 @@ export const useDeleteSeparator = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getDeleteSeparatorMutationOptions(options));
+    }
+
+export const getIndexBookForAiUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/ai/index`
+}
+
+/**
+ * Chunks and generates embeddings for all pages of the book
+ * @summary Index book for AI RAG
+ */
+export const indexBookForAi = async (bookId: string, options?: Parameters<typeof customFetch>[1]): Promise<AiIndexStatus> => {
+
+  return customFetch<AiIndexStatus>(getIndexBookForAiUrl(bookId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getIndexBookForAiMutationKey = () => ['indexBookForAi'] as const;
+
+export const getIndexBookForAiMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof indexBookForAi>>, TError,IndexBookForAiMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof indexBookForAi>>, TError,IndexBookForAiMutationVariables, TContext> => {
+
+const mutationKey = getIndexBookForAiMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof indexBookForAi>>, IndexBookForAiMutationVariables> = (props) => {
+          const {bookId} = props ?? {};
+
+          return  indexBookForAi(bookId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type IndexBookForAiMutationResult = NonNullable<Awaited<ReturnType<typeof indexBookForAi>>>
+
+    export type IndexBookForAiMutationError = ErrorType<ErrorResponse>
+    export type IndexBookForAiMutationVariables = {bookId: string}
+
+    /**
+ * @summary Index book for AI RAG
+ */
+export const useIndexBookForAi = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof indexBookForAi>>, TError,IndexBookForAiMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof indexBookForAi>>,
+        TError,
+        IndexBookForAiMutationVariables,
+        TContext
+      > => {
+      return useMutation(getIndexBookForAiMutationOptions(options));
+    }
+
+export const getGetBookAiIndexStatusUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/ai/index/status`
+}
+
+/**
+ * Returns indexing status, chunk count and progress
+ * @summary Get AI index status
+ */
+export const getBookAiIndexStatus = async (bookId: string, options?: Parameters<typeof customFetch>[1]): Promise<AiIndexStatus> => {
+
+  return customFetch<AiIndexStatus>(getGetBookAiIndexStatusUrl(bookId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBookAiIndexStatusQueryKey = (bookId: string,) => {
+    return [
+    `/api/books/${bookId}/ai/index/status`
+    ] as const;
+    }
+
+
+export const getGetBookAiIndexStatusQueryOptions = <TData = Awaited<ReturnType<typeof getBookAiIndexStatus>>, TError = ErrorType<ErrorResponse>>(bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookAiIndexStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBookAiIndexStatusQueryKey(bookId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookAiIndexStatus>>> = ({ signal }) => getBookAiIndexStatus(bookId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBookAiIndexStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBookAiIndexStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getBookAiIndexStatus>>>
+export type GetBookAiIndexStatusQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get AI index status
+ */
+
+export function useGetBookAiIndexStatus<TData = Awaited<ReturnType<typeof getBookAiIndexStatus>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookAiIndexStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBookAiIndexStatusQueryOptions(bookId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDefineTermUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/ai/define`
+}
+
+/**
+ * Returns definition, simple explanation, contextual grounded explanation and example
+ * @summary Contextual dictionary definition
+ */
+export const defineTerm = async (bookId: string,
+    defineRequest: DefineRequest, options?: Parameters<typeof customFetch>[1]): Promise<DefineResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DefineResponse>(getDefineTermUrl(bookId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(defineRequest)
+  }
+);}
+
+
+
+
+
+export const getDefineTermMutationKey = () => ['defineTerm'] as const;
+
+export const getDefineTermMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof defineTerm>>, TError,DefineTermMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof defineTerm>>, TError,DefineTermMutationVariables, TContext> => {
+
+const mutationKey = getDefineTermMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof defineTerm>>, DefineTermMutationVariables> = (props) => {
+          const {bookId,data} = props ?? {};
+
+          return  defineTerm(bookId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DefineTermMutationResult = NonNullable<Awaited<ReturnType<typeof defineTerm>>>
+    export type DefineTermMutationBody = BodyType<DefineRequest>
+    export type DefineTermMutationError = ErrorType<ErrorResponse>
+    export type DefineTermMutationVariables = {bookId: string;data: BodyType<DefineRequest>}
+
+    /**
+ * @summary Contextual dictionary definition
+ */
+export const useDefineTerm = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof defineTerm>>, TError,DefineTermMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof defineTerm>>,
+        TError,
+        DefineTermMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDefineTermMutationOptions(options));
+    }
+
+export const getExplainSelectionUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/ai/explain`
+}
+
+/**
+ * Returns grounded explanation of selected text with citation
+ * @summary Explain selection in context
+ */
+export const explainSelection = async (bookId: string,
+    explainRequest: ExplainRequest, options?: Parameters<typeof customFetch>[1]): Promise<ExplainResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ExplainResponse>(getExplainSelectionUrl(bookId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(explainRequest)
+  }
+);}
+
+
+
+
+
+export const getExplainSelectionMutationKey = () => ['explainSelection'] as const;
+
+export const getExplainSelectionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof explainSelection>>, TError,ExplainSelectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof explainSelection>>, TError,ExplainSelectionMutationVariables, TContext> => {
+
+const mutationKey = getExplainSelectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof explainSelection>>, ExplainSelectionMutationVariables> = (props) => {
+          const {bookId,data} = props ?? {};
+
+          return  explainSelection(bookId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExplainSelectionMutationResult = NonNullable<Awaited<ReturnType<typeof explainSelection>>>
+    export type ExplainSelectionMutationBody = BodyType<ExplainRequest>
+    export type ExplainSelectionMutationError = ErrorType<ErrorResponse>
+    export type ExplainSelectionMutationVariables = {bookId: string;data: BodyType<ExplainRequest>}
+
+    /**
+ * @summary Explain selection in context
+ */
+export const useExplainSelection = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof explainSelection>>, TError,ExplainSelectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof explainSelection>>,
+        TError,
+        ExplainSelectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getExplainSelectionMutationOptions(options));
+    }
+
+export const getAskBookQuestionUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/ai/ask`
+}
+
+/**
+ * Answers question grounded in book content with citations
+ * @summary Ask BookMind question
+ */
+export const askBookQuestion = async (bookId: string,
+    askBookRequest: AskBookRequest, options?: Parameters<typeof customFetch>[1]): Promise<AskBookResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AskBookResponse>(getAskBookQuestionUrl(bookId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(askBookRequest)
+  }
+);}
+
+
+
+
+
+export const getAskBookQuestionMutationKey = () => ['askBookQuestion'] as const;
+
+export const getAskBookQuestionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askBookQuestion>>, TError,AskBookQuestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof askBookQuestion>>, TError,AskBookQuestionMutationVariables, TContext> => {
+
+const mutationKey = getAskBookQuestionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askBookQuestion>>, AskBookQuestionMutationVariables> = (props) => {
+          const {bookId,data} = props ?? {};
+
+          return  askBookQuestion(bookId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskBookQuestionMutationResult = NonNullable<Awaited<ReturnType<typeof askBookQuestion>>>
+    export type AskBookQuestionMutationBody = BodyType<AskBookRequest>
+    export type AskBookQuestionMutationError = ErrorType<ErrorResponse>
+    export type AskBookQuestionMutationVariables = {bookId: string;data: BodyType<AskBookRequest>}
+
+    /**
+ * @summary Ask BookMind question
+ */
+export const useAskBookQuestion = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askBookQuestion>>, TError,AskBookQuestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof askBookQuestion>>,
+        TError,
+        AskBookQuestionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskBookQuestionMutationOptions(options));
+    }
+
+export const getGetBookAiConversationsUrl = (bookId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/ai/conversations`
+}
+
+/**
+ * Returns past AI conversations for the current user and book
+ * @summary List AI conversations for book
+ */
+export const getBookAiConversations = async (bookId: string, options?: Parameters<typeof customFetch>[1]): Promise<AiConversation[]> => {
+
+  return customFetch<AiConversation[]>(getGetBookAiConversationsUrl(bookId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBookAiConversationsQueryKey = (bookId: string,) => {
+    return [
+    `/api/books/${bookId}/ai/conversations`
+    ] as const;
+    }
+
+
+export const getGetBookAiConversationsQueryOptions = <TData = Awaited<ReturnType<typeof getBookAiConversations>>, TError = ErrorType<ErrorResponse>>(bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookAiConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBookAiConversationsQueryKey(bookId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookAiConversations>>> = ({ signal }) => getBookAiConversations(bookId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBookAiConversations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBookAiConversationsQueryResult = NonNullable<Awaited<ReturnType<typeof getBookAiConversations>>>
+export type GetBookAiConversationsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List AI conversations for book
+ */
+
+export function useGetBookAiConversations<TData = Awaited<ReturnType<typeof getBookAiConversations>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookAiConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBookAiConversationsQueryOptions(bookId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAiConversationMessagesUrl = (bookId: string,
+    conversationId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/ai/conversations/${conversationId}`
+}
+
+/**
+ * Returns conversation detail with all messages and citations
+ * @summary Get conversation detail and messages
+ */
+export const getAiConversationMessages = async (bookId: string,
+    conversationId: string, options?: Parameters<typeof customFetch>[1]): Promise<AiConversationDetail> => {
+
+  return customFetch<AiConversationDetail>(getGetAiConversationMessagesUrl(bookId,conversationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAiConversationMessagesQueryKey = (bookId: string,
+    conversationId: string,) => {
+    return [
+    `/api/books/${bookId}/ai/conversations/${conversationId}`
+    ] as const;
+    }
+
+
+export const getGetAiConversationMessagesQueryOptions = <TData = Awaited<ReturnType<typeof getAiConversationMessages>>, TError = ErrorType<ErrorResponse>>(bookId: string,
+    conversationId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiConversationMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAiConversationMessagesQueryKey(bookId,conversationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiConversationMessages>>> = ({ signal }) => getAiConversationMessages(bookId,conversationId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookId !== null && bookId !== undefined && conversationId !== null && conversationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiConversationMessages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAiConversationMessagesQueryResult = NonNullable<Awaited<ReturnType<typeof getAiConversationMessages>>>
+export type GetAiConversationMessagesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get conversation detail and messages
+ */
+
+export function useGetAiConversationMessages<TData = Awaited<ReturnType<typeof getAiConversationMessages>>, TError = ErrorType<ErrorResponse>>(
+ bookId: string,
+    conversationId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiConversationMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAiConversationMessagesQueryOptions(bookId,conversationId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteAiConversationUrl = (bookId: string,
+    conversationId: string,) => {
+
+
+
+
+  return `/api/books/${bookId}/ai/conversations/${conversationId}`
+}
+
+/**
+ * Soft deletes an AI conversation
+ * @summary Delete AI conversation
+ */
+export const deleteAiConversation = async (bookId: string,
+    conversationId: string, options?: Parameters<typeof customFetch>[1]): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteAiConversationUrl(bookId,conversationId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAiConversationMutationKey = () => ['deleteAiConversation'] as const;
+
+export const getDeleteAiConversationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAiConversation>>, TError,DeleteAiConversationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAiConversation>>, TError,DeleteAiConversationMutationVariables, TContext> => {
+
+const mutationKey = getDeleteAiConversationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAiConversation>>, DeleteAiConversationMutationVariables> = (props) => {
+          const {bookId,conversationId} = props ?? {};
+
+          return  deleteAiConversation(bookId,conversationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAiConversationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAiConversation>>>
+
+    export type DeleteAiConversationMutationError = ErrorType<ErrorResponse>
+    export type DeleteAiConversationMutationVariables = {bookId: string;conversationId: string}
+
+    /**
+ * @summary Delete AI conversation
+ */
+export const useDeleteAiConversation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAiConversation>>, TError,DeleteAiConversationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAiConversation>>,
+        TError,
+        DeleteAiConversationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteAiConversationMutationOptions(options));
     }
 

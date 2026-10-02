@@ -667,6 +667,148 @@ export interface UpdateSeparatorRequest {
   color?: string;
 }
 
+export type AiScope = typeof AiScope[keyof typeof AiScope];
+
+
+export const AiScope = {
+  selection: 'selection',
+  page: 'page',
+  separator: 'separator',
+  book: 'book',
+} as const;
+
+export interface AiCitation {
+  id: string;
+  pageNumber: number;
+  quote: string;
+  startBlockId?: string | null;
+  startOffset?: number | null;
+  endBlockId?: string | null;
+  endOffset?: number | null;
+  retrievalScore?: number | null;
+  rank?: number;
+}
+
+export type AiIndexStatusStatus = typeof AiIndexStatusStatus[keyof typeof AiIndexStatusStatus];
+
+
+export const AiIndexStatusStatus = {
+  not_indexed: 'not_indexed',
+  indexing: 'indexing',
+  ready: 'ready',
+  failed: 'failed',
+} as const;
+
+export interface AiIndexStatus {
+  id: string;
+  bookId: string;
+  status: AiIndexStatusStatus;
+  indexVersion?: string;
+  embeddingModel?: string;
+  chunkCount: number;
+  indexedPageCount: number;
+  totalPages?: number;
+  progressPercent?: number;
+  startedAt?: string | null;
+  completedAt?: string | null;
+}
+
+export interface DefineRequest {
+  term: string;
+  pageNumber: number;
+  blockId?: string | null;
+  offset?: number | null;
+  contextSentence?: string | null;
+}
+
+export interface DefineResponse {
+  term: string;
+  definition: string;
+  simpleExplanation: string;
+  contextExplanation: string;
+  example: string;
+  pageNumber: number;
+  citation?: AiCitation | null;
+}
+
+export interface ExplainRequest {
+  text: string;
+  pageNumber: number;
+  startBlockId?: string | null;
+  startOffset?: number | null;
+  endBlockId?: string | null;
+  endOffset?: number | null;
+  prefixText?: string | null;
+  suffixText?: string | null;
+}
+
+export interface ExplainResponse {
+  explanation: string;
+  keyConcepts?: string[];
+  citation: AiCitation;
+}
+
+export interface AskBookRequest {
+  question: string;
+  scope?: AiScope;
+  scopeRef?: string | null;
+  conversationId?: string | null;
+}
+
+export type AskBookResponseConfidence = typeof AskBookResponseConfidence[keyof typeof AskBookResponseConfidence];
+
+
+export const AskBookResponseConfidence = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+  none: 'none',
+} as const;
+
+export interface AskBookResponse {
+  conversationId: string;
+  messageId: string;
+  answer: string;
+  citations: AiCitation[];
+  insufficientEvidence: boolean;
+  confidence?: AskBookResponseConfidence;
+}
+
+export interface AiConversation {
+  id: string;
+  userId: string;
+  bookId: string;
+  title: string;
+  scopeType: AiScope;
+  scopeRef?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AiMessageItemRole = typeof AiMessageItemRole[keyof typeof AiMessageItemRole];
+
+
+export const AiMessageItemRole = {
+  user: 'user',
+  assistant: 'assistant',
+  system: 'system',
+} as const;
+
+export interface AiMessageItem {
+  id: string;
+  conversationId: string;
+  role: AiMessageItemRole;
+  content: string;
+  citations?: AiCitation[];
+  insufficientEvidence?: boolean;
+  createdAt: string;
+}
+
+export interface AiConversationDetail {
+  conversation: AiConversation;
+  messages: AiMessageItem[];
+}
+
 export type GetBookNotesParams = {
 pageNumber?: number;
 };

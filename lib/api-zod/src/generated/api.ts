@@ -1127,3 +1127,246 @@ export const DeleteSeparatorResponse = zod.object({
 })
 
 
+/**
+ * Chunks and generates embeddings for all pages of the book
+ * @summary Index book for AI RAG
+ */
+export const IndexBookForAiParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const IndexBookForAiResponse = zod.object({
+  "id": zod.string(),
+  "bookId": zod.string(),
+  "status": zod.enum(['not_indexed', 'indexing', 'ready', 'failed']),
+  "indexVersion": zod.string().optional(),
+  "embeddingModel": zod.string().optional(),
+  "chunkCount": zod.number().int(),
+  "indexedPageCount": zod.number().int(),
+  "totalPages": zod.number().int().optional(),
+  "progressPercent": zod.number().int().optional(),
+  "startedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish()
+})
+
+
+/**
+ * Returns indexing status, chunk count and progress
+ * @summary Get AI index status
+ */
+export const GetBookAiIndexStatusParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const GetBookAiIndexStatusResponse = zod.object({
+  "id": zod.string(),
+  "bookId": zod.string(),
+  "status": zod.enum(['not_indexed', 'indexing', 'ready', 'failed']),
+  "indexVersion": zod.string().optional(),
+  "embeddingModel": zod.string().optional(),
+  "chunkCount": zod.number().int(),
+  "indexedPageCount": zod.number().int(),
+  "totalPages": zod.number().int().optional(),
+  "progressPercent": zod.number().int().optional(),
+  "startedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish()
+})
+
+
+/**
+ * Returns definition, simple explanation, contextual grounded explanation and example
+ * @summary Contextual dictionary definition
+ */
+export const DefineTermParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const DefineTermBody = zod.object({
+  "term": zod.string(),
+  "pageNumber": zod.number().int(),
+  "blockId": zod.string().nullish(),
+  "offset": zod.number().int().nullish(),
+  "contextSentence": zod.string().nullish()
+})
+
+export const defineTermResponseCitationOneRankDefault = 1;
+
+export const DefineTermResponse = zod.object({
+  "term": zod.string(),
+  "definition": zod.string(),
+  "simpleExplanation": zod.string(),
+  "contextExplanation": zod.string(),
+  "example": zod.string(),
+  "pageNumber": zod.number().int(),
+  "citation": zod.object({
+  "id": zod.string(),
+  "pageNumber": zod.number().int(),
+  "quote": zod.string(),
+  "startBlockId": zod.string().nullish(),
+  "startOffset": zod.number().int().nullish(),
+  "endBlockId": zod.string().nullish(),
+  "endOffset": zod.number().int().nullish(),
+  "retrievalScore": zod.number().nullish(),
+  "rank": zod.number().int().default(defineTermResponseCitationOneRankDefault)
+}).nullish()
+})
+
+
+/**
+ * Returns grounded explanation of selected text with citation
+ * @summary Explain selection in context
+ */
+export const ExplainSelectionParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const ExplainSelectionBody = zod.object({
+  "text": zod.string(),
+  "pageNumber": zod.number().int(),
+  "startBlockId": zod.string().nullish(),
+  "startOffset": zod.number().int().nullish(),
+  "endBlockId": zod.string().nullish(),
+  "endOffset": zod.number().int().nullish(),
+  "prefixText": zod.string().nullish(),
+  "suffixText": zod.string().nullish()
+})
+
+export const explainSelectionResponseCitationRankDefault = 1;
+
+export const ExplainSelectionResponse = zod.object({
+  "explanation": zod.string(),
+  "keyConcepts": zod.array(zod.string()).optional(),
+  "citation": zod.object({
+  "id": zod.string(),
+  "pageNumber": zod.number().int(),
+  "quote": zod.string(),
+  "startBlockId": zod.string().nullish(),
+  "startOffset": zod.number().int().nullish(),
+  "endBlockId": zod.string().nullish(),
+  "endOffset": zod.number().int().nullish(),
+  "retrievalScore": zod.number().nullish(),
+  "rank": zod.number().int().default(explainSelectionResponseCitationRankDefault)
+})
+})
+
+
+/**
+ * Answers question grounded in book content with citations
+ * @summary Ask BookMind question
+ */
+export const AskBookQuestionParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const askBookQuestionBodyScopeDefault = `book`;
+
+export const AskBookQuestionBody = zod.object({
+  "question": zod.string(),
+  "scope": zod.enum(['selection', 'page', 'separator', 'book']).default(askBookQuestionBodyScopeDefault),
+  "scopeRef": zod.string().nullish(),
+  "conversationId": zod.string().nullish()
+})
+
+export const askBookQuestionResponseCitationsItemRankDefault = 1;
+
+export const AskBookQuestionResponse = zod.object({
+  "conversationId": zod.string(),
+  "messageId": zod.string(),
+  "answer": zod.string(),
+  "citations": zod.array(zod.object({
+  "id": zod.string(),
+  "pageNumber": zod.number().int(),
+  "quote": zod.string(),
+  "startBlockId": zod.string().nullish(),
+  "startOffset": zod.number().int().nullish(),
+  "endBlockId": zod.string().nullish(),
+  "endOffset": zod.number().int().nullish(),
+  "retrievalScore": zod.number().nullish(),
+  "rank": zod.number().int().default(askBookQuestionResponseCitationsItemRankDefault)
+})),
+  "insufficientEvidence": zod.boolean(),
+  "confidence": zod.enum(['high', 'medium', 'low', 'none']).optional()
+})
+
+
+/**
+ * Returns past AI conversations for the current user and book
+ * @summary List AI conversations for book
+ */
+export const GetBookAiConversationsParams = zod.object({
+  "bookId": zod.coerce.string()
+})
+
+export const GetBookAiConversationsResponseItem = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "title": zod.string(),
+  "scopeType": zod.enum(['selection', 'page', 'separator', 'book']),
+  "scopeRef": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const GetBookAiConversationsResponse = zod.array(GetBookAiConversationsResponseItem)
+
+
+/**
+ * Returns conversation detail with all messages and citations
+ * @summary Get conversation detail and messages
+ */
+export const GetAiConversationMessagesParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "conversationId": zod.coerce.string()
+})
+
+export const getAiConversationMessagesResponseMessagesItemCitationsItemRankDefault = 1;
+export const getAiConversationMessagesResponseMessagesItemInsufficientEvidenceDefault = false;
+
+export const GetAiConversationMessagesResponse = zod.object({
+  "conversation": zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "bookId": zod.string(),
+  "title": zod.string(),
+  "scopeType": zod.enum(['selection', 'page', 'separator', 'book']),
+  "scopeRef": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}),
+  "messages": zod.array(zod.object({
+  "id": zod.string(),
+  "conversationId": zod.string(),
+  "role": zod.enum(['user', 'assistant', 'system']),
+  "content": zod.string(),
+  "citations": zod.array(zod.object({
+  "id": zod.string(),
+  "pageNumber": zod.number().int(),
+  "quote": zod.string(),
+  "startBlockId": zod.string().nullish(),
+  "startOffset": zod.number().int().nullish(),
+  "endBlockId": zod.string().nullish(),
+  "endOffset": zod.number().int().nullish(),
+  "retrievalScore": zod.number().nullish(),
+  "rank": zod.number().int().default(getAiConversationMessagesResponseMessagesItemCitationsItemRankDefault)
+})).optional(),
+  "insufficientEvidence": zod.boolean().default(getAiConversationMessagesResponseMessagesItemInsufficientEvidenceDefault),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * Soft deletes an AI conversation
+ * @summary Delete AI conversation
+ */
+export const DeleteAiConversationParams = zod.object({
+  "bookId": zod.coerce.string(),
+  "conversationId": zod.coerce.string()
+})
+
+export const DeleteAiConversationResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+

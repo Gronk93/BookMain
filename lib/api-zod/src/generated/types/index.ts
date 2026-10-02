@@ -6,6 +6,17 @@
  * OpenAPI spec version: 0.2.0
  */
 
+export * from './aiCitation';
+export * from './aiConversation';
+export * from './aiConversationDetail';
+export * from './aiIndexStatus';
+export * from './aiIndexStatusStatus';
+export * from './aiMessageItem';
+export * from './aiMessageItemRole';
+export * from './aiScope';
+export * from './askBookRequest';
+export * from './askBookResponse';
+export * from './askBookResponseConfidence';
 export * from './authResponse';
 export * from './bookDetailResponse';
 export * from './bookFileMetadata';
@@ -21,9 +32,13 @@ export * from './createHighlightRequestCategory';
 export * from './createHighlightRequestColor';
 export * from './createNoteRequest';
 export * from './createSeparatorRequest';
+export * from './defineRequest';
+export * from './defineResponse';
 export * from './errorDetail';
 export * from './errorDetailDetails';
 export * from './errorResponse';
+export * from './explainRequest';
+export * from './explainResponse';
 export * from './getBookHighlightsParams';
 export * from './getBookNotesParams';
 export * from './getGlobalNotesParams';

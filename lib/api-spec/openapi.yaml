@@ -1268,6 +1268,308 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /books/{bookId}/ai/index:
+    post:
+      operationId: indexBookForAi
+      tags: [ai]
+      summary: Index book for AI RAG
+      description: Chunks and generates embeddings for all pages of the book
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Indexing status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiIndexStatus"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/ai/index/status:
+    get:
+      operationId: getBookAiIndexStatus
+      tags: [ai]
+      summary: Get AI index status
+      description: Returns indexing status, chunk count and progress
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Indexing status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiIndexStatus"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/ai/define:
+    post:
+      operationId: defineTerm
+      tags: [ai]
+      summary: Contextual dictionary definition
+      description: Returns definition, simple explanation, contextual grounded explanation and example
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DefineRequest"
+      responses:
+        "200":
+          description: Contextual definition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DefineResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/ai/explain:
+    post:
+      operationId: explainSelection
+      tags: [ai]
+      summary: Explain selection in context
+      description: Returns grounded explanation of selected text with citation
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExplainRequest"
+      responses:
+        "200":
+          description: Explanation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExplainResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/ai/ask:
+    post:
+      operationId: askBookQuestion
+      tags: [ai]
+      summary: Ask BookMind question
+      description: Answers question grounded in book content with citations
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AskBookRequest"
+      responses:
+        "200":
+          description: AI Answer with citations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AskBookResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/ai/conversations:
+    get:
+      operationId: getBookAiConversations
+      tags: [ai]
+      summary: List AI conversations for book
+      description: Returns past AI conversations for the current user and book
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AiConversation"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/ai/conversations/{conversationId}:
+    get:
+      operationId: getAiConversationMessages
+      tags: [ai]
+      summary: Get conversation detail and messages
+      description: Returns conversation detail with all messages and citations
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Conversation detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiConversationDetail"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteAiConversation
+      tags: [ai]
+      summary: Delete AI conversation
+      description: Soft deletes an AI conversation
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Conversation deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -2175,5 +2477,280 @@ components:
           type: integer
         color:
           type: string
+
+    AiScope:
+      type: string
+      enum: [selection, page, separator, book]
+
+    AiCitation:
+      type: object
+      properties:
+        id:
+          type: string
+        pageNumber:
+          type: integer
+        quote:
+          type: string
+        startBlockId:
+          type: string
+          nullable: true
+        startOffset:
+          type: integer
+          nullable: true
+        endBlockId:
+          type: string
+          nullable: true
+        endOffset:
+          type: integer
+          nullable: true
+        retrievalScore:
+          type: number
+          nullable: true
+        rank:
+          type: integer
+          default: 1
+      required:
+        - id
+        - pageNumber
+        - quote
+
+    AiIndexStatus:
+      type: object
+      properties:
+        id:
+          type: string
+        bookId:
+          type: string
+        status:
+          type: string
+          enum: [not_indexed, indexing, ready, failed]
+        indexVersion:
+          type: string
+        embeddingModel:
+          type: string
+        chunkCount:
+          type: integer
+        indexedPageCount:
+          type: integer
+        totalPages:
+          type: integer
+        progressPercent:
+          type: integer
+        startedAt:
+          type: string
+          nullable: true
+        completedAt:
+          type: string
+          nullable: true
+      required:
+        - id
+        - bookId
+        - status
+        - chunkCount
+        - indexedPageCount
+
+    DefineRequest:
+      type: object
+      properties:
+        term:
+          type: string
+        pageNumber:
+          type: integer
+        blockId:
+          type: string
+          nullable: true
+        offset:
+          type: integer
+          nullable: true
+        contextSentence:
+          type: string
+          nullable: true
+      required:
+        - term
+        - pageNumber
+
+    DefineResponse:
+      type: object
+      properties:
+        term:
+          type: string
+        definition:
+          type: string
+        simpleExplanation:
+          type: string
+        contextExplanation:
+          type: string
+        example:
+          type: string
+        pageNumber:
+          type: integer
+        citation:
+          allOf:
+            - $ref: "#/components/schemas/AiCitation"
+          nullable: true
+      required:
+        - term
+        - definition
+        - simpleExplanation
+        - contextExplanation
+        - example
+        - pageNumber
+
+    ExplainRequest:
+      type: object
+      properties:
+        text:
+          type: string
+        pageNumber:
+          type: integer
+        startBlockId:
+          type: string
+          nullable: true
+        startOffset:
+          type: integer
+          nullable: true
+        endBlockId:
+          type: string
+          nullable: true
+        endOffset:
+          type: integer
+          nullable: true
+        prefixText:
+          type: string
+          nullable: true
+        suffixText:
+          type: string
+          nullable: true
+      required:
+        - text
+        - pageNumber
+
+    ExplainResponse:
+      type: object
+      properties:
+        explanation:
+          type: string
+        keyConcepts:
+          type: array
+          items:
+            type: string
+        citation:
+          $ref: "#/components/schemas/AiCitation"
+      required:
+        - explanation
+        - citation
+
+    AskBookRequest:
+      type: object
+      properties:
+        question:
+          type: string
+        scope:
+          $ref: "#/components/schemas/AiScope"
+          default: book
+        scopeRef:
+          type: string
+          nullable: true
+        conversationId:
+          type: string
+          nullable: true
+      required:
+        - question
+
+    AskBookResponse:
+      type: object
+      properties:
+        conversationId:
+          type: string
+        messageId:
+          type: string
+        answer:
+          type: string
+        citations:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiCitation"
+        insufficientEvidence:
+          type: boolean
+        confidence:
+          type: string
+          enum: [high, medium, low, none]
+      required:
+        - conversationId
+        - messageId
+        - answer
+        - citations
+        - insufficientEvidence
+
+    AiConversation:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        bookId:
+          type: string
+        title:
+          type: string
+        scopeType:
+          $ref: "#/components/schemas/AiScope"
+        scopeRef:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - userId
+        - bookId
+        - title
+        - scopeType
+        - createdAt
+        - updatedAt
+
+    AiMessageItem:
+      type: object
+      properties:
+        id:
+          type: string
+        conversationId:
+          type: string
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+        citations:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiCitation"
+        insufficientEvidence:
+          type: boolean
+          default: false
+        createdAt:
+          type: string
+      required:
+        - id
+        - conversationId
+        - role
+        - content
+        - createdAt
+
+    AiConversationDetail:
+      type: object
+      properties:
+        conversation:
+          $ref: "#/components/schemas/AiConversation"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiMessageItem"
+      required:
+        - conversation
+        - messages
+
 
 

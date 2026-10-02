@@ -36,6 +36,13 @@
       "when": 1790821787512,
       "tag": "0004_great_rocket_racer",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790890774740,
+      "tag": "0005_bent_nextwave",
+      "breakpoints": true
     }
   ]
 }

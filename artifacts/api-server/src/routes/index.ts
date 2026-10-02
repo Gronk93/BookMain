@@ -6,6 +6,7 @@ import booksRouter from "./books";
 import highlightsRouter from "./highlights";
 import separatorsRouter from "./separators";
 import notesRouter from "./notes";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(booksRouter);
 router.use(highlightsRouter);
 router.use(separatorsRouter);
 router.use(notesRouter);
+router.use(aiRouter);
 
 export default router;

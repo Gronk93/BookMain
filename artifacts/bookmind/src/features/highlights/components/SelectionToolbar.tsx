@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { NotebookPen, Copy, Check } from "lucide-react";
+import { NotebookPen, Copy, Check, BookOpen, Sparkles, Bot } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { type HighlightColor, type TextSelectionData, COLOR_CONFIG } from "../types";
 
@@ -7,6 +7,9 @@ interface SelectionToolbarProps {
   selection: TextSelectionData;
   onHighlight: (color: HighlightColor) => Promise<void> | void;
   onAddNote: (color: HighlightColor) => Promise<void> | void;
+  onDefine?: (term: string) => void;
+  onExplain?: () => void;
+  onAsk?: () => void;
   onClose: () => void;
 }
 
@@ -14,6 +17,9 @@ export function SelectionToolbar({
   selection,
   onHighlight,
   onAddNote,
+  onDefine,
+  onExplain,
+  onAsk,
   onClose,
 }: SelectionToolbarProps) {
   const { t } = useTranslation(["reader", "common"]);
@@ -83,6 +89,46 @@ export function SelectionToolbar({
       >
         {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
       </button>
+
+      {/* AI Actions Divider */}
+      {(onDefine || onExplain || onAsk) && (
+        <div className="h-4 w-px bg-border/60 mx-0.5" />
+      )}
+
+      {/* Definir */}
+      {onDefine && (
+        <button
+          onClick={() => onDefine(selection.exactText.trim())}
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+          title="Definición en Diccionario Contextual"
+        >
+          <BookOpen size={13} />
+          <span>Definir</span>
+        </button>
+      )}
+
+      {/* Explicar */}
+      {onExplain && (
+        <button
+          onClick={() => onExplain()}
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors"
+          title="Explicar pasaje seleccionado"
+        >
+          <Sparkles size={13} />
+          <span>Explicar</span>
+        </button>
+      )}
+
+      {/* Preguntar */}
+      {onAsk && (
+        <button
+          onClick={() => onAsk()}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          title="Preguntar a BookMind sobre esta selección"
+        >
+          <Bot size={14} />
+        </button>
+      )}
     </div>
   );
 }

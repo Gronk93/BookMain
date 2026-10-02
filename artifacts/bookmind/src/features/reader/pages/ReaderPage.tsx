@@ -50,6 +50,9 @@ import { ReaderSettings } from "../components/ReaderSettings";
 import { PageNavigator } from "../components/PageNavigator";
 import { InsightPanel } from "../components/InsightPanel";
 import { NotePanel } from "@/features/notes/components/NotePanel";
+import { DictionaryCard } from "@/features/ai/components/DictionaryCard";
+import { ExplainCard } from "@/features/ai/components/ExplainCard";
+import { BookMindPanel } from "@/features/ai/components/BookMindPanel";
 import NotFound from "@/pages/not-found";
 
 export function ReaderPage() {
@@ -80,6 +83,27 @@ export function ReaderPage() {
   // Separator modal state
   const [isSeparatorModalOpen, setIsSeparatorModalOpen] = useState(false);
   const [editingSeparator, setEditingSeparator] = useState<Separator | null>(null);
+
+  // BM-PRD-07 AI states
+  const [dictionaryState, setDictionaryState] = useState<{
+    term: string;
+    pageNumber: number;
+    contextSentence?: string | null;
+    blockId?: string | null;
+    offset?: number | null;
+  } | null>(null);
+
+  const [explainState, setExplainState] = useState<{
+    text: string;
+    pageNumber: number;
+    startBlockId?: string | null;
+    startOffset?: number | null;
+    endBlockId?: string | null;
+    endOffset?: number | null;
+  } | null>(null);
+
+  const [isBookMindOpen, setIsBookMindOpen] = useState(false);
+  const [aiSelectedText, setAiSelectedText] = useState<string>("");
 
   // TanStack Query for book details
   const { data: apiDetails, isLoading: isBookLoading, refetch } = useGetBookDetails(bookId, {
@@ -551,25 +575,35 @@ export function ReaderPage() {
           </div>
         )}
 
-        {/* Side Panels (Quick Page Notes or AI Insight) */}
-        {panel !== "none" && (
+        {/* Side Panels: Quick Page Note or BookMind AI Panel */}
+        {panel === "note" && (
           <aside className="fixed right-4 bottom-16 top-16 z-30 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card/95 p-5 shadow-2xl backdrop-blur-md overflow-y-auto animate-in slide-in-from-right duration-200">
-            {panel === "note" ? (
-              <NotePanel
-                initialContent={currentNote?.content || ""}
-                pageNumber={currentPage}
-                onSave={handleSaveNote}
-                onDelete={currentNote ? handleDeleteNote : undefined}
-                onClose={() => setPanel("none")}
-              />
-            ) : (
-              <InsightPanel
-                selected={selectedText}
-                onClose={() => setPanel("none")}
-              />
-            )}
+            <NotePanel
+              initialContent={currentNote?.content || ""}
+              pageNumber={currentPage}
+              onSave={handleSaveNote}
+              onDelete={currentNote ? handleDeleteNote : undefined}
+              onClose={() => setPanel("none")}
+            />
           </aside>
         )}
+
+        <BookMindPanel
+          bookId={bookId}
+          bookTitle={apiDetails?.book?.title || "Libro"}
+          currentPage={currentPage}
+          selectedText={aiSelectedText}
+          separators={separators}
+          isOpen={panel === "insight" || isBookMindOpen}
+          onClose={() => {
+            setPanel("none");
+            setIsBookMindOpen(false);
+            setAiSelectedText("");
+          }}
+          onNavigateCitation={(p) => {
+            goToPage(p);
+          }}
+        />
       </main>
 
       {/* Floating Selection Toolbar (appears on text selection) */}
@@ -578,7 +612,86 @@ export function ReaderPage() {
           selection={selectionData}
           onHighlight={handleToolbarHighlight}
           onAddNote={handleToolbarAddNote}
+          onDefine={(term) => {
+            setDictionaryState({
+              term,
+              pageNumber: currentPage,
+              contextSentence: selectionData.prefixText
+                ? `${selectionData.prefixText} ${selectionData.exactText} ${selectionData.suffixText || ""}`
+                : selectionData.exactText,
+              blockId: selectionData.startBlockId,
+              offset: selectionData.startOffset,
+            });
+            clearSelection();
+          }}
+          onExplain={() => {
+            setExplainState({
+              text: selectionData.exactText,
+              pageNumber: currentPage,
+              startBlockId: selectionData.startBlockId,
+              startOffset: selectionData.startOffset,
+              endBlockId: selectionData.endBlockId,
+              endOffset: selectionData.endOffset,
+            });
+            clearSelection();
+          }}
+          onAsk={() => {
+            setAiSelectedText(selectionData.exactText);
+            setIsBookMindOpen(true);
+            clearSelection();
+          }}
           onClose={clearSelection}
+        />
+      )}
+
+      {/* Contextual Dictionary Modal */}
+      {dictionaryState && (
+        <DictionaryCard
+          bookId={bookId}
+          term={dictionaryState.term}
+          pageNumber={dictionaryState.pageNumber}
+          contextSentence={dictionaryState.contextSentence}
+          blockId={dictionaryState.blockId}
+          offset={dictionaryState.offset}
+          onClose={() => setDictionaryState(null)}
+          onNavigateCitation={(p) => goToPage(p)}
+          onAddNote={(content) => {
+            createNoteMutation.mutate({
+              bookId,
+              data: {
+                pageNumber: dictionaryState.pageNumber,
+                content,
+                color: "blue",
+              } as any,
+            });
+            setDictionaryState(null);
+          }}
+        />
+      )}
+
+      {/* Explain Selection Modal */}
+      {explainState && (
+        <ExplainCard
+          bookId={bookId}
+          text={explainState.text}
+          pageNumber={explainState.pageNumber}
+          startBlockId={explainState.startBlockId}
+          startOffset={explainState.startOffset}
+          endBlockId={explainState.endBlockId}
+          endOffset={explainState.endOffset}
+          onClose={() => setExplainState(null)}
+          onNavigateCitation={(p) => goToPage(p)}
+          onAddNote={(content) => {
+            createNoteMutation.mutate({
+              bookId,
+              data: {
+                pageNumber: explainState.pageNumber,
+                content,
+                color: "yellow",
+              } as any,
+            });
+            setExplainState(null);
+          }}
         />
       )}
 
